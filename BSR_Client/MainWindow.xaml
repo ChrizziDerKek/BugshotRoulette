@@ -15,7 +15,7 @@
         <Grid Name="Login" Visibility="Visible">
             <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
             <StackPanel Orientation="Vertical" Margin="250,500,250,0">
-                <TextBox Background="Black" Foreground="White" Name="Username" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
+                <TextBox MaxLength="20" Background="Black" Foreground="White" Name="Username" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
                 <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="Connect" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="Start" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="" Click="Button_Click"/>
             </StackPanel>
@@ -35,11 +35,11 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="2*"/>
             </Grid.RowDefinitions>
-            <ProgressBar Name="Health1" Grid.Row="1" Grid.Column="0" Margin="5" Minimum="0" Maximum="6" Background="#454545"/>
-            <ProgressBar Name="Health2" Grid.Row="1" Grid.Column="1" Margin="5" Minimum="0" Maximum="6" Background="#454545"/>
-            <ProgressBar Name="Health3" Grid.Row="1" Grid.Column="2" Margin="5" Minimum="0" Maximum="6" Background="#454545"/>
-            <ProgressBar Name="Health4" Grid.Row="1" Grid.Column="3" Margin="5" Minimum="0" Maximum="6" Background="#454545"/>
-            <ProgressBar Name="Health5" Grid.Row="1" Grid.Column="4" Margin="5" Minimum="0" Maximum="6" Background="#454545"/>
+            <ProgressBar Name="Health1" Grid.Row="1" Grid.Column="0" Margin="5" Minimum="0" Maximum="10" Background="#454545"/>
+            <ProgressBar Name="Health2" Grid.Row="1" Grid.Column="1" Margin="5" Minimum="0" Maximum="10" Background="#454545"/>
+            <ProgressBar Name="Health3" Grid.Row="1" Grid.Column="2" Margin="5" Minimum="0" Maximum="10" Background="#454545"/>
+            <ProgressBar Name="Health4" Grid.Row="1" Grid.Column="3" Margin="5" Minimum="0" Maximum="10" Background="#454545"/>
+            <ProgressBar Name="Health5" Grid.Row="1" Grid.Column="4" Margin="5" Minimum="0" Maximum="10" Background="#454545"/>
             <Button Margin="5" Grid.Row="2" Grid.Column="2" Name="Shoot" Click="Button_Click" IsEnabled="False" BorderBrush="#454545">
                 <Grid>
                     <Image Stretch="Fill" Source="textures/shotgun.png" Margin="0,0,0,0"/>

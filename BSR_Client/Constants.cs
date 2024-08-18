@@ -63,6 +63,7 @@ namespace BSR_Client
         private bool WasPlayingSounds = false;
         private bool NextShotSawed = false;
         private bool CanShootAgain = false;
+        private bool PacketHandled = false;
         
         private class SoundLib
         {

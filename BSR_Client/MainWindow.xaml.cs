@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Threading.Tasks;
 
 namespace BSR_Client
 {
@@ -24,7 +25,7 @@ namespace BSR_Client
                     if ((sender as Button).Content.ToString() == "")
                         return;
                     MyName = Username.Text;
-                    if (MyName == "" || MyName == "None")
+                    if (!IsNameValid(MyName))
                         return;
                     Sync = new Client(IP, PORT, this);
                     Sync.Start();
@@ -105,12 +106,12 @@ namespace BSR_Client
                         case EItem.Inverter:
                             if (Bullets[0] == EBullet.Live)
                             {
-                                Announce("Inverted live Bullet to blank");
+                                //Announce("Inverted live Bullet to blank");
                                 Bullets[0] = EBullet.Blank;
                             }
                             else
                             {
-                                Announce("Inverted blank Bullet to live");
+                                //Announce("Inverted blank Bullet to live");
                                 Bullets[0] = EBullet.Live;
                             }
                             break;
@@ -207,9 +208,10 @@ namespace BSR_Client
 
         public void Receive(string message)
         {
+            Packet data = new Packet(message);           
+            PacketHandled = false;
             Dispatcher.Invoke(() =>
             {
-                Packet data = new Packet(message);
                 switch (data.GetId())
                 {
                     case EPacket.Connect:
@@ -311,6 +313,7 @@ namespace BSR_Client
                             switch (item)
                             {
                                 case EItem.Beer:
+                                    Announce("Racked Bullet: " + Bullets[0].ToString());
                                     Bullets.RemoveAt(0);
                                     break;
                                 case EItem.Inverter:
@@ -333,7 +336,10 @@ namespace BSR_Client
                             ShowEndscreen();
                         break;
                 }
+                PacketHandled = true;
             });
+            while (!PacketHandled)
+                Task.Delay(1).Wait();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

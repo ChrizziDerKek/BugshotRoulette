@@ -15,6 +15,16 @@ namespace BSR_Client
         {
             if (bullets.Length > 8)
                 return;
+            int nblank = 0;
+            int nlive = 0;
+            foreach (EBullet bullet in bullets)
+            {
+                if (bullet == EBullet.Live)
+                    nlive++;
+                else
+                    nblank++;
+            }
+            Announce(nlive + " lives, " + nblank + " blanks");
             Rectangle[] displays = new Rectangle[] { Bullet1, Bullet2, Bullet3, Bullet4, Bullet5, Bullet6, Bullet7, Bullet8 };
             for (int i = 0; i < bullets.Length; i++)
                 displays[i].Fill = bullets[i] == EBullet.Live ? Brushes.Red : Brushes.Gray;
@@ -54,7 +64,7 @@ namespace BSR_Client
 
         public void GenerateLives()
         {
-            int maxhealth = RNG.Next(2, 6);
+            int maxhealth = RNG.Next(5, 11);
             foreach (string player in Players)
                 UpdateLives(player, maxhealth, true, false, true);
         }
@@ -79,7 +89,7 @@ namespace BSR_Client
 
         public void GenerateItems(bool remoteGenerate, int remoteCount)
         {
-            int count = RNG.Next(1, 5);
+            int count = RNG.Next(1, 4);
             if (remoteCount > 0)
                 count = remoteCount;
             string msg = "";
@@ -126,7 +136,8 @@ namespace BSR_Client
             if (player == MyName && GetHealth() <= 0)
             {
                 Dead();
-                ShowEndscreen();
+                if (PlayersAlive <= 1)
+                    ShowEndscreen();
             }
         }
 
@@ -533,6 +544,29 @@ namespace BSR_Client
                     Sound.Adrenaline.Play();
                     break;
             }
+        }
+
+        public bool IsNameValid(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return false;
+            if (name.Length > 0xFF)
+                return false;
+            if (name.Contains(","))
+                return false;
+            if (name.Contains("#"))
+                return false;
+            if (name.Contains("$"))
+                return false;
+            if (name.ToLower().Trim() == "none")
+                return false;
+            if (name.Trim() == null || name.Trim().Length == 0)
+                return false;
+            string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_ .-+*/!?";
+            foreach (char c in name)
+                if (!allowed.Contains("" + c))
+                    return false;
+            return true;
         }
     }
 }
