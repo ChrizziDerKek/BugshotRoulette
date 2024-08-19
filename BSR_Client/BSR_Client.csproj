@@ -110,22 +110,22 @@
     <Resource Include="textures\title.jpg" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="sounds\bsr_background1.wav" />
-    <Resource Include="sounds\bsr_background2.wav" />
-    <Resource Include="sounds\bsr_beer.wav" />
-    <Resource Include="sounds\bsr_cig.wav" />
-    <Resource Include="sounds\bsr_empty.wav" />
-    <Resource Include="sounds\bsr_handcuff.wav" />
-    <Resource Include="sounds\bsr_inverter.wav" />
-    <Resource Include="sounds\bsr_magnify.wav" />
-    <Resource Include="sounds\bsr_saw.wav" />
-    <Resource Include="sounds\bsr_shot.wav" />
-    <Resource Include="sounds\bsr_title.wav" />
+    <Content Include="sounds\bsr_background1.wav" />
+    <Content Include="sounds\bsr_background2.wav" />
+    <Content Include="sounds\bsr_beer.wav" />
+    <Content Include="sounds\bsr_cig.wav" />
+    <Content Include="sounds\bsr_empty.wav" />
+    <Content Include="sounds\bsr_handcuff.wav" />
+    <Content Include="sounds\bsr_inverter.wav" />
+    <Content Include="sounds\bsr_magnify.wav" />
+    <Content Include="sounds\bsr_saw.wav" />
+    <Content Include="sounds\bsr_shot.wav" />
+    <Content Include="sounds\bsr_title.wav" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="sounds\bsr_adrenaline.wav" />
-    <Resource Include="sounds\bsr_medicine.wav" />
-    <Resource Include="sounds\bsr_phone.wav" />
+    <Content Include="sounds\bsr_adrenaline.wav" />
+    <Content Include="sounds\bsr_medicine.wav" />
+    <Content Include="sounds\bsr_phone.wav" />
     <Resource Include="textures\cigarettes.png" />
     <Resource Include="textures\handcuffs.png" />
     <Resource Include="textures\inverter.png" />
@@ -141,7 +141,7 @@
     <Resource Include="icon.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="sounds\bsr_end.wav" />
+    <Content Include="sounds\bsr_end.wav" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

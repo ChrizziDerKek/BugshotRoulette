@@ -52,7 +52,7 @@ namespace BSR_Client
         private List<string> DeadPlayers = new List<string>();
         private int PlayersAlive = 0;
         private Client Sync = null;
-        private string IP = "127.0.0.1";
+        private string IP = "";
         private int PORT = 19123;
         private string MyName;
         private List<string> PlayerTurns = new List<string>();

@@ -25,7 +25,10 @@ namespace BSR_Client
                     if ((sender as Button).Content.ToString() == "")
                         return;
                     MyName = Username.Text;
+                    IP = HostIP.Text;
                     if (!IsNameValid(MyName))
+                        return;
+                    if (!IsIpValid(IP))
                         return;
                     Sync = new Client(IP, PORT, this);
                     Sync.Start();

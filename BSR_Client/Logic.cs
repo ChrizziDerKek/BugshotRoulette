@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -565,6 +566,17 @@ namespace BSR_Client
             string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_ .-+*/!?";
             foreach (char c in name)
                 if (!allowed.Contains("" + c))
+                    return false;
+            return true;
+        }
+
+        public bool IsIpValid(string ip)
+        {
+            string[] splitted = ip.Split('.');
+            if (splitted.Length != 4)
+                return false;
+            foreach (string s in splitted)
+                if (!int.TryParse(s, out int value) || value > 0xFF || value < 0)
                     return false;
             return true;
         }
