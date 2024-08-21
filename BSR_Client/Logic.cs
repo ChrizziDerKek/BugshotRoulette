@@ -111,6 +111,16 @@ namespace BSR_Client
             temp.Send(Sync);
         }
 
+        public int GetItemCount()
+        {
+            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
+            int count = 0;
+            for (int i = 0; i < displays.Length; i++)
+                if (!IsItemSlot(displays[i], "Nothing"))
+                    count++;
+            return count;
+        }
+
         public void UpdateLives(string player, int lives, bool set, bool lose, bool sync)
         {
             if (set && lose)

@@ -121,6 +121,17 @@
     <Content Include="sounds\bsr_saw.wav" />
     <Content Include="sounds\bsr_shot.wav" />
     <Content Include="sounds\bsr_title.wav" />
+    <Resource Include="textures\bullet.png" />
+    <Resource Include="textures\gunpowder.png" />
+    <Resource Include="textures\healingbullet.png" />
+    <Resource Include="textures\heroine.png" />
+    <Resource Include="textures\joint.png" />
+    <Resource Include="textures\magazine.png" />
+    <Resource Include="textures\rotator.png" />
+    <Resource Include="textures\shield.png" />
+    <Resource Include="textures\swapper.png" />
+    <Resource Include="textures\trashbin.png" />
+    <Resource Include="textures\vacuum.png" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="sounds\bsr_adrenaline.wav" />

@@ -2,6 +2,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Windows.Shapes;
 
 namespace BSR_Client
 {
@@ -79,6 +81,16 @@ namespace BSR_Client
                     Packet.Create(EPacket.HideBullets).Send(Sync);
                     ResetBullets();
                     EItem item = UseItem(action);
+                    if (UsedTrashBin)
+                    {
+                        EItem newitem;
+                        do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
+                        while (newitem == EItem.Trashbin || newitem == item);
+                        SetItem(newitem, true);
+                        Announce("You trashed " + item.ToString() + " and got: " + newitem.ToString());
+                        Packet.Create(EPacket.ItemTrashed).Add(MyName).Add(item.ToString()).Add(newitem.ToString()).Send(Sync);
+                        return;
+                    }
                     PlaySfx(item);
                     switch (item)
                     {
@@ -145,6 +157,23 @@ namespace BSR_Client
                             Announce("You got: " + newitem.ToString());
                             Packet.Create(EPacket.ReceiveItems).Add(MyName).Add(1).Add(false).Add(newitem.ToString()).Send(Sync);
                             break;
+                        case EItem.Magazine:
+                            Bullets.Clear();
+                            GenerateBullets();
+                            UnlockItems();
+                            break;
+                        case EItem.Gunpowder:
+                            NextShotGunpowdered = true;
+                            break;
+                        case EItem.Bullet:
+                            bool live = RNG.Next(0, 2) == 0;
+                            Bullets.Add(live ? EBullet.Live : EBullet.Blank);
+                            Packet.Create(EPacket.ExtraBullet).Add(live).Send(Sync);
+                            break;
+                        case EItem.Trashbin:
+                            if (GetItemCount() > 0)
+                                UsedTrashBin = true;
+                            break;
                     }
                     break;
                 case "Player1":
@@ -168,7 +197,20 @@ namespace BSR_Client
                     PlaySfx(bullet == EBullet.Live);
                     if (bullet == EBullet.Live)
                     {
-                        UpdateLives(target, NextShotSawed ? 2 : 1, false, true, true);
+                        int damage = 1;
+                        if (NextShotSawed)
+                            damage++;
+                        if (NextShotGunpowdered)
+                        {
+                            damage += 2;
+                            if (RNG.Next(0, 2) == 0)
+                            {
+                                damage--;
+                                target = MyName;
+                                you = true;
+                            }
+                        }
+                        UpdateLives(target, damage, false, true, true);
                         Announce("*Boom* the bullet was a live");
                         if (you)
                         {
@@ -205,6 +247,7 @@ namespace BSR_Client
                         UnlockItems();
                     }
                     NextShotSawed = false;
+                    NextShotGunpowdered = false;
                     break;
             }
         }
@@ -322,6 +365,9 @@ namespace BSR_Client
                                 case EItem.Inverter:
                                     Bullets[0] = Bullets[0] == EBullet.Live ? EBullet.Blank : EBullet.Live;
                                     break;
+                                case EItem.Magazine:
+                                    Bullets.Clear();
+                                    break;
                             }
                         }
                         break;
@@ -337,6 +383,12 @@ namespace BSR_Client
                         PlayersAlive--;
                         if (PlayersAlive <= 1)
                             ShowEndscreen();
+                        break;
+                    case EPacket.ExtraBullet:
+                        Bullets.Add(data.ReadBool(0) ? EBullet.Live : EBullet.Blank);
+                        break;
+                    case EPacket.ItemTrashed:
+                        Announce(data.ReadStr(0) + " trashed " + data.ReadStr(1) + " and got: " + data.ReadStr(2));
                         break;
                 }
                 PacketHandled = true;

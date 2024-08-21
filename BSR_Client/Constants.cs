@@ -23,6 +23,8 @@ namespace BSR_Client
         BecomeAngry,
         ChangeMusic,
         Dead,
+        ExtraBullet,
+        ItemTrashed,
     }
 
     public enum EBullet
@@ -43,6 +45,10 @@ namespace BSR_Client
         Medicine,
         Phone,
         Adrenaline,
+        Magazine,
+        Gunpowder,
+        Bullet,
+        Trashbin,
         Count,
     }
 
@@ -62,9 +68,11 @@ namespace BSR_Client
         private int InitialBulletCount = 0;
         private bool WasPlayingSounds = false;
         private bool NextShotSawed = false;
+        private bool NextShotGunpowdered = false;
         private bool CanShootAgain = false;
         private bool PacketHandled = false;
-        
+        private bool UsedTrashBin = false;
+
         private class SoundLib
         {
             public MediaPlayer Title = new MediaPlayer() { Volume = 0.1 };
