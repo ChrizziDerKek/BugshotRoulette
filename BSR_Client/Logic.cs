@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace BSR_Client
 {
@@ -26,16 +24,14 @@ namespace BSR_Client
                     nblank++;
             }
             Announce(nlive + " lives, " + nblank + " blanks");
-            Rectangle[] displays = new Rectangle[] { Bullet1, Bullet2, Bullet3, Bullet4, Bullet5, Bullet6, Bullet7, Bullet8 };
             for (int i = 0; i < bullets.Length; i++)
-                displays[i].Fill = bullets[i] == EBullet.Live ? Brushes.Red : Brushes.Gray;
+                Elements.Bullets[i].Fill = bullets[i] == EBullet.Live ? Brushes.Red : Brushes.Gray;
         }
 
         public void ResetBullets()
         {
-            Rectangle[] displays = new Rectangle[] { Bullet1, Bullet2, Bullet3, Bullet4, Bullet5, Bullet6, Bullet7, Bullet8 };
-            for (int i = 0; i < displays.Length; i++)
-                displays[i].Fill = Brushes.Transparent;
+            for (int i = 0; i < Elements.Bullets.Length; i++)
+                Elements.Bullets[i].Fill = Brushes.Transparent;
         }
 
         public void Dead()
@@ -74,14 +70,12 @@ namespace BSR_Client
         {
             Players.Remove(player);
             PlayerTurns.Remove(player);
-            ProgressBar[] displays = new ProgressBar[] { Health1, Health2, Health3, Health4, Health5 };
-            Button[] players = new Button[] { Player1, Player2, Player3, Player4, Player5 };
             int it = 0;
-            foreach (Button b in players)
+            foreach (Button b in Elements.Players)
             {
                 if (IsPlayerSlot(b, player))
                 {
-                    displays[it].Value = 0;
+                    Elements.HealthBars[it].Value = 0;
                     break;
                 }
                 it++;
@@ -113,10 +107,9 @@ namespace BSR_Client
 
         public int GetItemCount()
         {
-            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
             int count = 0;
-            for (int i = 0; i < displays.Length; i++)
-                if (!IsItemSlot(displays[i], "Nothing"))
+            for (int i = 0; i < Elements.Items.Length; i++)
+                if (!IsItemSlot(Elements.Items[i], "Nothing"))
                     count++;
             return count;
         }
@@ -125,21 +118,19 @@ namespace BSR_Client
         {
             if (set && lose)
                 return;
-            ProgressBar[] displays = new ProgressBar[] { Health1, Health2, Health3, Health4, Health5 };
-            Button[] players = new Button[] { Player1, Player2, Player3, Player4, Player5 };
             if (sync)
                 Packet.Create(EPacket.UpdateLives).Add(player).Add(lives).Add(set).Add(lose).Send(Sync);
             int it = 0;
-            foreach (Button b in players)
+            foreach (Button b in Elements.Players)
             {
                 if (IsPlayerSlot(b, player))
                 {
                     if (set)
-                        displays[it].Value = lives;
+                        Elements.HealthBars[it].Value = lives;
                     else if (lose)
-                        displays[it].Value -= lives;
+                        Elements.HealthBars[it].Value -= lives;
                     else
-                        displays[it].Value += lives;
+                        Elements.HealthBars[it].Value += lives;
                     break;
                 }
                 it++;
@@ -214,12 +205,11 @@ namespace BSR_Client
             if (Players.Contains(username))
                 return false;
             Players.Add(username);
-            Button[] displays = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            for (int i = 0; i < displays.Length; i++)
+            for (int i = 0; i < Elements.Players.Length; i++)
             {
-                if (IsPlayerSlot(displays[i], "None"))
+                if (IsPlayerSlot(Elements.Players[i], "None"))
                 {
-                    SetPlayerData(displays[i], username, true);
+                    SetPlayerData(Elements.Players[i], username, true);
                     break;
                 }
             }
@@ -260,18 +250,15 @@ namespace BSR_Client
         public void SetActive(bool active)
         {
             Shoot.IsEnabled = active;
-            Button[] items = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            foreach (Button i in items)
+            foreach (Button i in Elements.Items)
                 i.IsEnabled = false;
-            items = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            foreach (Button i in items)
+            foreach (Button i in Elements.Players)
                 i.IsEnabled = false;
         }
 
         public void HideInactivePlayers()
         {
-            Button[] items = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            foreach (Button i in items)
+            foreach (Button i in Elements.Players)
                 if (IsPlayerSlot(i, "None"))
                     i.Visibility = Visibility.Hidden;
         }
@@ -279,15 +266,12 @@ namespace BSR_Client
         public void PrepareGun()
         {
             Shoot.IsEnabled = false;
-            Button[] items = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            foreach (Button i in items)
+            foreach (Button i in Elements.Items)
                 i.IsEnabled = false;
-            items = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            ProgressBar[] displays = new ProgressBar[] { Health1, Health2, Health3, Health4, Health5 };
             int it = 0;
-            foreach (Button i in items)
+            foreach (Button i in Elements.Players)
             {
-                if (!IsPlayerSlot(i, "None") && displays[it].Value > 0)
+                if (!IsPlayerSlot(i, "None") && Elements.HealthBars[it].Value > 0)
                     i.IsEnabled = true;
                 it++;
             }
@@ -328,8 +312,7 @@ namespace BSR_Client
 
         public void SetAngry(string player)
         {
-            Button[] items = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            foreach (Button i in items)
+            foreach (Button i in Elements.Players)
             {
                 if (IsPlayerSlot(i, player))
                 {
@@ -381,13 +364,11 @@ namespace BSR_Client
 
         public int GetHealth()
         {
-            Button[] items = new Button[] { Player1, Player2, Player3, Player4, Player5 };
-            ProgressBar[] displays = new ProgressBar[] { Health1, Health2, Health3, Health4, Health5 };
             int it = 0;
-            foreach (Button i in items)
+            foreach (Button i in Elements.Players)
             {
                 if (IsPlayerSlot(i, MyName))
-                    return (int)displays[it].Value;
+                    return (int)Elements.HealthBars[it].Value;
                 it++;
             }
             return 0;
@@ -395,15 +376,14 @@ namespace BSR_Client
 
         public bool SetItem(EItem type, bool enable = false)
         {
-            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            for (int i = 0; i < displays.Length; i++)
+            for (int i = 0; i < Elements.Items.Length; i++)
             {
-                if (IsItemSlot(displays[i], "Nothing"))
+                if (IsItemSlot(Elements.Items[i], "Nothing"))
                 {
-                    displays[i].Visibility = Visibility.Visible;
-                    SetItemData(displays[i], type);
+                    Elements.Items[i].Visibility = Visibility.Visible;
+                    SetItemData(Elements.Items[i], type);
                     if (enable)
-                        displays[i].IsEnabled = true;
+                        Elements.Items[i].IsEnabled = true;
                     return true;
                 }
             }
@@ -412,21 +392,19 @@ namespace BSR_Client
 
         public void HideEmptyItemSlots()
         {
-            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            for (int i = 0; i < displays.Length; i++)
-                if (IsItemSlot(displays[i], "Nothing"))
-                    displays[i].Visibility = Visibility.Hidden;
+            for (int i = 0; i < Elements.Items.Length; i++)
+                if (IsItemSlot(Elements.Items[i], "Nothing"))
+                    Elements.Items[i].Visibility = Visibility.Hidden;
         }
 
         public EItem UseItem(string slot)
         {
             Button it = null;
-            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            for (int i = 0; i < displays.Length; i++)
+            for (int i = 0; i < Elements.Items.Length; i++)
             {
-                if (displays[i].Name == slot)
+                if (Elements.Items[i].Name == slot)
                 {
-                    it = displays[i];
+                    it = Elements.Items[i];
                     break;
                 }
             }
@@ -445,12 +423,9 @@ namespace BSR_Client
 
         public void UnlockItems()
         {
-            Button[] displays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
-            for (int i = 0; i < displays.Length; i++)
-            {
-                if (!IsItemSlot(displays[i], "Nothing"))
-                    displays[i].IsEnabled = true;
-            }
+            for (int i = 0; i < Elements.Items.Length; i++)
+                if (!IsItemSlot(Elements.Items[i], "Nothing"))
+                    Elements.Items[i].IsEnabled = true;
         }
 
         public bool ProcessIsRunning()

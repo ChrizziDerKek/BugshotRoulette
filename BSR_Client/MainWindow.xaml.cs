@@ -2,8 +2,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
-using System.Windows.Shapes;
 
 namespace BSR_Client
 {
@@ -12,6 +10,7 @@ namespace BSR_Client
         public MainWindow()
         {
             InitializeComponent();
+            Elements = new ElementLib(this);
             int r1 = RNG.Next();
             int r2 = RNG.Next();
             RNG.Next(Math.Min(r1, r2), Math.Max(r1, r2));
@@ -83,6 +82,7 @@ namespace BSR_Client
                     EItem item = UseItem(action);
                     if (UsedTrashBin)
                     {
+                        UsedTrashBin = false;
                         EItem newitem;
                         do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
                         while (newitem == EItem.Trashbin || newitem == item);

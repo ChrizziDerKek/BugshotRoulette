@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
+#pragma warning disable IDE0079
 #pragma warning disable IDE0044
 
 namespace BSR_Client
@@ -72,6 +75,24 @@ namespace BSR_Client
         private bool CanShootAgain = false;
         private bool PacketHandled = false;
         private bool UsedTrashBin = false;
+
+        private class ElementLib
+        {
+            public Rectangle[] Bullets;
+            public ProgressBar[] HealthBars;
+            public Button[] Items;
+            public Button[] Players;
+
+            public ElementLib(MainWindow w)
+            {
+                Bullets = new Rectangle[] { w.Bullet1, w.Bullet2, w.Bullet3, w.Bullet4, w.Bullet5, w.Bullet6, w.Bullet7, w.Bullet8 };
+                HealthBars = new ProgressBar[] { w.Health1, w.Health2, w.Health3, w.Health4, w.Health5 };
+                Items = new Button[] { w.Item1, w.Item2, w.Item3, w.Item4, w.Item5, w.Item6, w.Item7, w.Item8 };
+                Players = new Button[] { w.Player1, w.Player2, w.Player3, w.Player4, w.Player5 };
+            }
+        }
+
+        private ElementLib Elements = null;
 
         private class SoundLib
         {

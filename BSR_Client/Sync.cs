@@ -4,28 +4,33 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.IO;
+using System.Threading;
 
 namespace BSR_Client
 {
     public class Client
     {
-        private TcpClient Socket;
-        private Stream Stream;
-        private MainWindow Owner;
+        private readonly TcpClient Socket;
+        private readonly Stream Stream;
+        private readonly MainWindow Owner;
+        private readonly Mutex Lock;
 
         public Client(string ip, int port, MainWindow owner)
         {
             Socket = new TcpClient(ip, port);
             Stream = Socket.GetStream();
             Owner = owner;
+            Lock = new Mutex();
         }
 
         public void Send(string message)
         {
+            Lock.WaitOne();
             message = "$" + message;
             Task.Delay(100).Wait();
             byte[] buffer = Encoding.UTF8.GetBytes(message);
             Stream.Write(buffer, 0, buffer.Length);
+            Lock.ReleaseMutex();
         }
 
         public void Start() => Task.Run(Run);
