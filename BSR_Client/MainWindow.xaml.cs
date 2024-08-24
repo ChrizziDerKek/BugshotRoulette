@@ -3,6 +3,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Windows.Markup;
+using System.Net.Sockets;
 
 namespace BSR_Client
 {
@@ -37,6 +40,9 @@ namespace BSR_Client
                         return;
                     MyName = Username.Text;
                     IP = HostIP.Text;
+                    DebugMode = IsDebugName(MyName);
+                    if (DebugMode != EDebugMode.None)
+                        RenameDebugName();
                     if (!IsNameValid(MyName))
                         return;
                     if (!IsIpValid(IP))
@@ -75,9 +81,11 @@ namespace BSR_Client
                     HideInactivePlayers();
                     break;
                 case "Shoot":
+                    UsedShotgun = true;
                     Packet.Create(EPacket.HideBullets).Send(Sync);
                     ResetBullets();
                     PrepareGun();
+                    Announce("Select a player to shoot");
                     break;
                 case "Item1":
                 case "Item2":
@@ -89,7 +97,18 @@ namespace BSR_Client
                 case "Item8":
                     Packet.Create(EPacket.HideBullets).Send(Sync);
                     ResetBullets();
+                    if (AreItemsCloned)
+                        UsedTrashBin = false;
                     EItem item = UseItem(action, !UsedTrashBin);
+                    if (AreItemsCloned)
+                    {
+                        AreItemsCloned = false;
+                        RestoreItems();
+                        int slot = int.Parse(action.Replace("Item", "")) - 1;
+                        Announce("You stole " + item.ToString() + " from " + ItemCloneTarget);
+                        Packet.Create(EPacket.StealItem).Add(MyName).Add(ItemCloneTarget).Add(slot).Add(item.ToString()).Send(Sync);
+                        Shoot.IsEnabled = true;
+                    }
                     if (UsedTrashBin)
                     {
                         UsedTrashBin = false;
@@ -160,12 +179,15 @@ namespace BSR_Client
                             Announce(numbers[num] + " Bullet: " + InitialBullets[num].ToString());
                             break;
                         case EItem.Adrenaline:
-                            EItem newitem;
-                            do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
-                            while (newitem == EItem.Adrenaline);
-                            SetItem(newitem, true);
-                            Announce("You got: " + newitem.ToString());
-                            Packet.Create(EPacket.ReceiveItems).Add(MyName).Add(1).Add(false).Add(newitem.ToString()).Send(Sync);
+                            //EItem newitem;
+                            //do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
+                            //while (newitem == EItem.Adrenaline);
+                            //SetItem(newitem, true);
+                            //Announce("You got: " + newitem.ToString());
+                            //Packet.Create(EPacket.ReceiveItems).Add(MyName).Add(1).Add(false).Add(newitem.ToString()).Send(Sync);
+                            UsedAdrenaline = true;
+                            PreparePlayerItem();
+                            Announce("Select a player to see their items");
                             break;
                         case EItem.Magazine:
                             Bullets.Clear();
@@ -191,74 +213,85 @@ namespace BSR_Client
                 case "Player3":
                 case "Player4":
                 case "Player5":
-                    string target = Players[int.Parse(action.Replace("Player", "")) - 1];
-                    bool you = target == MyName;
-                    if (you)
-                        Announce("Shooting yourself");
-                    else
-                        Announce("Shooting " + target);
-                    EBullet bullet = Bullets[0];
-                    Bullets.RemoveAt(0);
-                    Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Send(Sync);
-                    bool again = CanShootAgain;
-                    bool wasAbleToShootAgain = CanShootAgain;
-                    if (CanShootAgain)
-                        CanShootAgain = false;
-                    PlaySfx(bullet == EBullet.Live, NextShotGunpowdered);
-                    if (bullet == EBullet.Live)
+                    if (UsedAdrenaline)
                     {
-                        int damage = 1;
-                        if (NextShotSawed)
-                            damage++;
-                        if (NextShotGunpowdered)
+                        UsedAdrenaline = false;
+                        SaveItems();
+                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        Packet.Create(EPacket.RequestItems).Add(target).Add(MyName).Send(Sync);
+                    }
+                    if (UsedShotgun)
+                    {
+                        UsedShotgun = false;
+                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        bool you = target == MyName;
+                        if (you)
+                            Announce("Shooting yourself");
+                        else
+                            Announce("Shooting " + target);
+                        EBullet bullet = Bullets[0];
+                        Bullets.RemoveAt(0);
+                        Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Send(Sync);
+                        bool again = CanShootAgain;
+                        bool wasAbleToShootAgain = CanShootAgain;
+                        if (CanShootAgain)
+                            CanShootAgain = false;
+                        PlaySfx(bullet == EBullet.Live, NextShotGunpowdered);
+                        if (bullet == EBullet.Live)
                         {
-                            damage += 2;
-                            if (RNG.Next(0, 2) == 0)
+                            int damage = 1;
+                            if (NextShotSawed)
+                                damage++;
+                            if (NextShotGunpowdered)
                             {
-                                damage--;
-                                target = MyName;
-                                you = true;
+                                damage += 2;
+                                if (RNG.Next(0, 2) == 0)
+                                {
+                                    damage--;
+                                    target = MyName;
+                                    you = true;
+                                }
+                            }
+                            UpdateLives(target, damage, false, true, true);
+                            Announce("*Boom* the bullet was a live");
+                            if (you)
+                            {
+                                SetAngry(MyName);
+                                Packet.Create(EPacket.BecomeAngry).Add(MyName).Send(Sync);
                             }
                         }
-                        UpdateLives(target, damage, false, true, true);
-                        Announce("*Boom* the bullet was a live");
-                        if (you)
+                        else if (you)
                         {
-                            SetAngry(MyName);
-                            Packet.Create(EPacket.BecomeAngry).Add(MyName).Send(Sync);
+                            Announce("*Click* the bullet was a blank");
+                            again = true;
+                            if (wasAbleToShootAgain)
+                                CanShootAgain = true;
                         }
-                    }
-                    else if (you)
-                    {
-                        Announce("*Click* the bullet was a blank");
-                        again = true;
-                        if (wasAbleToShootAgain)
-                            CanShootAgain = true;
-                    }
-                    else Announce("*Click* the bullet was a blank");
-                    if (Bullets.Count == 0)
-                    {
-                        GenerateBullets();
-                        GenerateItems(true, 0);
-                        HideEmptyItemSlots();
-                        if (IsPlayerActive())
+                        else Announce("*Click* the bullet was a blank");
+                        if (Bullets.Count == 0)
+                        {
+                            GenerateBullets();
+                            GenerateItems(true, 0);
+                            HideEmptyItemSlots();
+                            if (IsPlayerActive())
+                                UnlockItems();
+                        }
+                        if (!again)
+                        {
+                            SetActive(false);
+                            Packet.Create(EPacket.SetPlayer).Add(FindNextPlayer()).Send(Sync);
+                            Announce(FindNextPlayer() + "'s turn");
+                        }
+                        else
+                        {
+                            SetActive(true);
+                            Packet.Create(EPacket.SetPlayer).Add(MyName).Send(Sync);
+                            Announce("Your turn");
                             UnlockItems();
+                        }
+                        NextShotSawed = false;
+                        NextShotGunpowdered = false;
                     }
-                    if (!again)
-                    {
-                        SetActive(false);
-                        Packet.Create(EPacket.SetPlayer).Add(FindNextPlayer()).Send(Sync);
-                        Announce(FindNextPlayer() + "'s turn");
-                    }
-                    else
-                    {
-                        SetActive(true);
-                        Packet.Create(EPacket.SetPlayer).Add(MyName).Send(Sync);
-                        Announce("Your turn");
-                        UnlockItems();
-                    }
-                    NextShotSawed = false;
-                    NextShotGunpowdered = false;
                     break;
             }
         }
@@ -407,6 +440,54 @@ namespace BSR_Client
                         break;
                     case EPacket.ItemTrashed:
                         Announce(data.ReadStr(0) + " trashed " + data.ReadStr(1) + " and got: " + data.ReadStr(2));
+                        break;
+                    case EPacket.RequestItems:
+                        if (MyName == data.ReadStr(0))
+                        {
+                            List<string> itemlist = GetItemTypes();
+                            Packet temp = Packet.Create(EPacket.RequestItemsAck).Add(data.ReadStr(1)).Add(MyName).Add(itemlist.Count);
+                            foreach (string itemtype in itemlist)
+                                temp = temp.Add(itemtype);
+                            temp.Send(Sync);
+                        }
+                        break;
+                    case EPacket.RequestItemsAck:
+                        if (MyName == data.ReadStr(0))
+                        {
+                            bool hasAnyItems = false;
+                            for (int i = 0; i < data.ReadInt(2); i++)
+                            {
+                                if (Enum.TryParse(data.ReadStr(3 + i), out EItem it))
+                                {
+                                    ForceSetItem(i, it);
+                                    if (it == EItem.Adrenaline)
+                                        Elements.Items[i].IsEnabled = false;
+                                    if (it != EItem.Nothing && it != EItem.Adrenaline)
+                                        hasAnyItems = true;
+                                }
+                            }
+                            ItemCloneTarget = data.ReadStr(1);
+                            AreItemsCloned = true;
+                            Announce("Looking at " + ItemCloneTarget + "'s items");
+                            if (!hasAnyItems)
+                            {
+                                AreItemsCloned = false;
+                                RestoreItems();
+                                Shoot.IsEnabled = true;
+                                Announce("No items to steal");
+                            }
+                        }
+                        break;
+                    case EPacket.StealItem:
+                        string stealtarget = data.ReadStr(1);
+                        if (MyName == data.ReadStr(1))
+                        {
+                            Button stoleitem = Elements.Items[data.ReadInt(2)];
+                            SetItemData(stoleitem, EItem.Nothing);
+                            stoleitem.IsEnabled = false;
+                            stealtarget = "you";
+                        }
+                        Announce(data.ReadStr(0) + " stole " + data.ReadStr(3) + " from " + stealtarget);
                         break;
                 }
                 PacketHandled = true;

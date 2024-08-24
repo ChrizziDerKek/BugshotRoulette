@@ -28,6 +28,9 @@ namespace BSR_Client
         Dead,
         ExtraBullet,
         ItemTrashed,
+        RequestItems,
+        RequestItemsAck,
+        StealItem,
     }
 
     public enum EBullet
@@ -55,6 +58,17 @@ namespace BSR_Client
         Count,
     }
 
+    public enum EDebugMode
+    {
+        None,
+        GetOwnItems,
+        GetNoItems,
+        InfiniteHealth,
+        GenerateBlanksOnly,
+        GenerateLivesOnly,
+        AllowAllNameChars,
+    }
+
     public partial class MainWindow
     {
         private List<string> Players = new List<string>();
@@ -75,6 +89,11 @@ namespace BSR_Client
         private bool CanShootAgain = false;
         private bool PacketHandled = false;
         private bool UsedTrashBin = false;
+        private bool UsedShotgun = false;
+        private bool UsedAdrenaline = false;
+        private bool AreItemsCloned = false;
+        private EDebugMode DebugMode = EDebugMode.None;
+        private string ItemCloneTarget = "";
         private string GameVersion = "";
 
         public string GetGameVersion() => GameVersion;
@@ -90,13 +109,15 @@ namespace BSR_Client
             { EItem.Inverter, "Inverts the bullet type that's currently loaded\nA live becomes a blank and vice versa" },
             { EItem.Medicine, "Has a 50/50 chance of restoring 2 Health or losing 1" },
             { EItem.Phone, "Call a stranger who tells you the type of a random bullet" },
-            { EItem.Adrenaline, "Gives you a different item" },
+            { EItem.Adrenaline, "Select a player to look at their items and steal one of them to use it immediately\nStealing adrenaline isn't possible" },
             { EItem.Magazine, "Generates a new set of bullets" },
             { EItem.Gunpowder, "Has a 50/50 chance of dealing 3 damage or exploding in the barrel and dealing 2 to yourself\nCan be combined with a saw to deal 4 damage or 3 to yourself" },
             //{ EItem.Bullet, "Loads a new random bullet type into the gun\nAlways appears at the end of the round" },
             { EItem.Trashbin, "Allows you to throw away an item and receive a different one" },
             { EItem.Count, null },
         };
+
+        private List<EItem> ItemStorage = new List<EItem>();
 
         private class ElementLib
         {

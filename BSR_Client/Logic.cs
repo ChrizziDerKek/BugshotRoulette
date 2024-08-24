@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Collections.Generic;
+using System.Xml.Linq;
 
 namespace BSR_Client
 {
@@ -92,7 +95,10 @@ namespace BSR_Client
             Packet temp = Packet.Create(EPacket.ReceiveItems).Add(MyName).Add(count).Add(remoteGenerate);
             for (int i = 0; i < count; i++)
             {
-                EItem item = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
+                int start = (int)EItem.Nothing + 1;
+                if (DebugMode == EDebugMode.GetOwnItems)
+                    start = (int)EItem.Magazine;
+                EItem item = (EItem)RNG.Next(start, (int)EItem.Count);
                 if (!SetItem(item))
                     continue;
                 msg += "#" + item.ToString();
@@ -118,6 +124,8 @@ namespace BSR_Client
         public void UpdateLives(string player, int lives, bool set, bool lose, bool sync)
         {
             if (set && lose)
+                return;
+            if (lose && DebugMode == EDebugMode.InfiniteHealth)
                 return;
             if (sync)
                 Packet.Create(EPacket.UpdateLives).Add(player).Add(lives).Add(set).Add(lose).Send(Sync);
@@ -173,6 +181,10 @@ namespace BSR_Client
                     numblank = RNG.Next(3, 6);
                     break;
             }
+            if (DebugMode == EDebugMode.GenerateLivesOnly)
+                numblank = 0;
+            if (DebugMode == EDebugMode.GenerateBlanksOnly)
+                numblank = 8;
             for (int i = 0; i < numblank; i++)
                 Bullets.Add(EBullet.Blank);
             for (int i = 0; i < count - numblank; i++)
@@ -280,6 +292,20 @@ namespace BSR_Client
             }
         }
 
+        public void PreparePlayerItem()
+        {
+            Shoot.IsEnabled = false;
+            foreach (Button i in Elements.Items)
+                i.IsEnabled = false;
+            int it = 0;
+            foreach (Button i in Elements.Players)
+            {
+                if (!IsPlayerSlot(i, "None") && !IsPlayerSlot(i, MyName) && Elements.HealthBars[it].Value > 0)
+                    i.IsEnabled = true;
+                it++;
+            }
+        }
+
         public bool IsPlayerSlot(Button slot, string name)
         {
             if (slot == null)
@@ -349,6 +375,7 @@ namespace BSR_Client
         {
             if (slot == null)
                 return;
+            slot.Visibility = type == EItem.Nothing ? Visibility.Hidden : Visibility.Visible;
             if (type == EItem.Nothing)
                 slot.ToolTip = null;
             else
@@ -381,8 +408,41 @@ namespace BSR_Client
             return 0;
         }
 
+        public void SaveItems()
+        {
+            ItemStorage.Clear();
+            for (int i = 0; i < Elements.Items.Length; i++)
+            {
+                if (!Enum.TryParse(GetItemType(Elements.Items[i]), out EItem item))
+                    continue;
+                ItemStorage.Add(item);
+            }
+        }
+
+        public void RestoreItems()
+        {
+            int slot = 0;
+            foreach (EItem item in ItemStorage)
+                ForceSetItem(slot++, item);
+        }
+
+        public void ForceSetItem(int slot, EItem type)
+        {
+            for (int i = 0; i < Elements.Items.Length; i++)
+            {
+                if (slot == i)
+                {
+                    Elements.Items[i].Visibility = Visibility.Visible;
+                    SetItemData(Elements.Items[i], type);
+                    Elements.Items[i].IsEnabled = true;
+                }
+            }
+        }
+
         public bool SetItem(EItem type, bool enable = false)
         {
+            if (DebugMode == EDebugMode.GetNoItems)
+                return false;
             for (int i = 0; i < Elements.Items.Length; i++)
             {
                 if (IsItemSlot(Elements.Items[i], "Nothing"))
@@ -395,6 +455,14 @@ namespace BSR_Client
                 }
             }
             return false;
+        }
+
+        public List<string> GetItemTypes()
+        {
+            List<string> result = new List<string>();
+            foreach (Button item in Elements.Items)
+                result.Add(GetItemType(item));
+            return result;
         }
 
         public void HideEmptyItemSlots()
@@ -570,6 +638,8 @@ namespace BSR_Client
         {
             if (string.IsNullOrEmpty(name))
                 return false;
+            if (DebugMode == EDebugMode.AllowAllNameChars)
+                return true;
             if (name.Length > 0xFF)
                 return false;
             if (name.Contains(","))
@@ -587,6 +657,39 @@ namespace BSR_Client
                 if (!allowed.Contains("" + c))
                     return false;
             return true;
+        }
+
+        public EDebugMode IsDebugName(string name)
+        {
+            if (!name.StartsWith("#debug_") || !name.Contains(" "))
+                return EDebugMode.None;
+            string[] split = name.Split(' ');
+            if (split.Length != 2)
+                return EDebugMode.None;
+            if (split[1].Trim() == "")
+                return EDebugMode.None;
+            switch (split[0].Replace("#debug_", "").ToLower())
+            {
+                case "gni":
+                    return EDebugMode.GetNoItems;
+                case "goi":
+                    return EDebugMode.GetOwnItems;
+                case "ih":
+                    return EDebugMode.InfiniteHealth;
+                case "gbo":
+                    return EDebugMode.GenerateBlanksOnly;
+                case "glo":
+                    return EDebugMode.GenerateLivesOnly;
+                case "aanc":
+                    return EDebugMode.AllowAllNameChars;
+            }
+            return EDebugMode.None;
+        }
+
+        public void RenameDebugName()
+        {
+            string[] split = MyName.Split(' ');
+            MyName = split[1];
         }
 
         public bool IsIpValid(string ip)
