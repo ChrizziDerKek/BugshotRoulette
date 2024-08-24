@@ -20,6 +20,11 @@ namespace BSR_Client
             int r2 = RNG.Next();
             RNG.Next(Math.Min(r1, r2), Math.Max(r1, r2));
             PlayBackground(0, false);
+            Shoot.ToolTip =
+                "Shoot with the shotgun\n\n" +
+                "Shooting your enemy with a live deals 1 damage to them\n" +
+                "Shooting yourself with a blank skips the enemy's turns\n" +
+                "If you decide to shoot, you can't use items anymore";
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -243,6 +248,7 @@ namespace BSR_Client
                     {
                         SetActive(false);
                         Packet.Create(EPacket.SetPlayer).Add(FindNextPlayer()).Send(Sync);
+                        Announce(FindNextPlayer() + "'s turn");
                     }
                     else
                     {
@@ -296,6 +302,7 @@ namespace BSR_Client
                             {
                                 SetActive(false);
                                 Packet.Create(EPacket.SetPlayer).Add(FindNextPlayer()).Send(Sync);
+                                Announce(FindNextPlayer() + "'s turn");
                             }
                             else
                             {
@@ -416,6 +423,7 @@ namespace BSR_Client
             {
                 SetActive(false);
                 Packet.Create(EPacket.SetPlayer).Add(FindNextPlayer()).Send(Sync);
+                Announce(FindNextPlayer() + "'s turn");
             }
             Packet.Create(EPacket.Disconnect).Add(MyName).Send(Sync);
         }

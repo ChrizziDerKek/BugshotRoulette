@@ -349,6 +349,10 @@ namespace BSR_Client
         {
             if (slot == null)
                 return;
+            if (type == EItem.Nothing)
+                slot.ToolTip = null;
+            else
+                slot.ToolTip = type.ToString() + "\n\n" + ItemDescriptions[type];
             if (!(slot.Content is Grid))
                 return;
             UIElement text = (slot.Content as Grid).Children[1];
