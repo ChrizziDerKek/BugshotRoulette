@@ -61,7 +61,7 @@ namespace BSR_Client
 
         public void GenerateLives()
         {
-            int maxhealth = RNG.Next(5, 11);
+            int maxhealth = RNG.Next(5, 16);
             foreach (string player in Players)
                 UpdateLives(player, maxhealth, true, false, true);
         }
@@ -85,7 +85,7 @@ namespace BSR_Client
 
         public void GenerateItems(bool remoteGenerate, int remoteCount)
         {
-            int count = RNG.Next(1, 4);
+            int count = RNG.Next(1, 5);
             if (remoteCount > 0)
                 count = remoteCount;
             string msg = "";
@@ -146,7 +146,8 @@ namespace BSR_Client
 
         public void GenerateBullets(bool sync = true)
         {
-            int count = RNG.Next(2, 9);
+            int randomDecision = RNG.Next(0, 100);
+            int count = randomDecision > 60 ? RNG.Next(2, 9) : RNG.Next(1, 3) * 2;  
             int numblank = 0;
             switch (count)
             {
