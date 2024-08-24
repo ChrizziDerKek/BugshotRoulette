@@ -50,7 +50,7 @@ namespace BSR_Client
         Adrenaline,
         Magazine,
         Gunpowder,
-        Bullet,
+        //Bullet,
         Trashbin,
         Count,
     }
@@ -75,6 +75,9 @@ namespace BSR_Client
         private bool CanShootAgain = false;
         private bool PacketHandled = false;
         private bool UsedTrashBin = false;
+        private string GameVersion = "";
+
+        public string GetGameVersion() => GameVersion;
 
         private class ElementLib
         {
@@ -96,12 +99,13 @@ namespace BSR_Client
 
         private class SoundLib
         {
-            public MediaPlayer Title = new MediaPlayer() { Volume = 0.1 };
-            public MediaPlayer Background1 = new MediaPlayer() { Volume = 0.1 };
-            public MediaPlayer Background2 = new MediaPlayer() { Volume = 0.1 };
-            public MediaPlayer End = new MediaPlayer() { Volume = 0.1 };
+            public MediaPlayer Title = new MediaPlayer() { Volume = 0.05 };
+            public MediaPlayer Background1 = new MediaPlayer() { Volume = 0.05 };
+            public MediaPlayer Background2 = new MediaPlayer() { Volume = 0.05 };
+            public MediaPlayer End = new MediaPlayer() { Volume = 0.05 };
             public MediaPlayer Empty = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Shot = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer GunpowderShot = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Saw = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Magnify = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Beer = new MediaPlayer() { Volume = 1.0 };
@@ -110,7 +114,11 @@ namespace BSR_Client
             public MediaPlayer Inverter = new MediaPlayer() { Volume= 1.0 };
             public MediaPlayer Medicine = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Phone = new MediaPlayer() { Volume = 1.0 };
-            public MediaPlayer Adrenaline = new MediaPlayer() { Volume= 1.0 };
+            public MediaPlayer Adrenaline = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Magazine = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Gunpowder = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Bullet = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Trashbin = new MediaPlayer() { Volume = 1.0 };
 
             public void Media_Ended(object sender, EventArgs e)
             {
@@ -126,6 +134,7 @@ namespace BSR_Client
                 End.Open(new Uri("sounds/bsr_end.wav", UriKind.Relative));
                 Empty.Open(new Uri("sounds/bsr_empty.wav", UriKind.Relative));
                 Shot.Open(new Uri("sounds/bsr_shot.wav", UriKind.Relative));
+                GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.wav", UriKind.Relative));
                 Saw.Open(new Uri("sounds/bsr_saw.wav", UriKind.Relative));
                 Magnify.Open(new Uri("sounds/bsr_magnify.wav", UriKind.Relative));
                 Beer.Open(new Uri("sounds/bsr_beer.wav", UriKind.Relative));
@@ -135,6 +144,10 @@ namespace BSR_Client
                 Medicine.Open(new Uri("sounds/bsr_medicine.wav", UriKind.Relative));
                 Phone.Open(new Uri("sounds/bsr_phone.wav", UriKind.Relative));
                 Adrenaline.Open(new Uri("sounds/bsr_adrenaline.wav", UriKind.Relative));
+                Magazine.Open(new Uri("sounds/bsr_magazine.wav", UriKind.Relative));
+                Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
+                Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
+                Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
 
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;

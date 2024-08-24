@@ -23,6 +23,17 @@
                 <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="Connect" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="Start" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="" Click="Button_Click"/>
             </StackPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="3*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="4*"/>
+                </Grid.ColumnDefinitions>
+                <ListView Name="Playerlist" Margin="5" SelectionChanged="ListView_SelectionChanged" TextBlock.Foreground="White" Background="Transparent"/>
+            </Grid>
         </Grid>
         <Grid Name="Game" Visibility="Hidden" Background="Black">
             <Grid.ColumnDefinitions>

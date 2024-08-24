@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace BSR_Client
 {
@@ -10,6 +11,10 @@ namespace BSR_Client
         public MainWindow()
         {
             InitializeComponent();
+            string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            version = version.Substring(0, version.Length - 2);
+            Title += " " + version;
+            GameVersion = version;
             Elements = new ElementLib(this);
             int r1 = RNG.Next();
             int r2 = RNG.Next();
@@ -79,7 +84,7 @@ namespace BSR_Client
                 case "Item8":
                     Packet.Create(EPacket.HideBullets).Send(Sync);
                     ResetBullets();
-                    EItem item = UseItem(action);
+                    EItem item = UseItem(action, !UsedTrashBin);
                     if (UsedTrashBin)
                     {
                         UsedTrashBin = false;
@@ -165,11 +170,11 @@ namespace BSR_Client
                         case EItem.Gunpowder:
                             NextShotGunpowdered = true;
                             break;
-                        case EItem.Bullet:
-                            bool live = RNG.Next(0, 2) == 0;
-                            Bullets.Add(live ? EBullet.Live : EBullet.Blank);
-                            Packet.Create(EPacket.ExtraBullet).Add(live).Send(Sync);
-                            break;
+                        //case EItem.Bullet:
+                        //    bool live = RNG.Next(0, 2) == 0;
+                        //    Bullets.Add(live ? EBullet.Live : EBullet.Blank);
+                        //    Packet.Create(EPacket.ExtraBullet).Add(live).Send(Sync);
+                        //    break;
                         case EItem.Trashbin:
                             if (GetItemCount() > 0)
                                 UsedTrashBin = true;
@@ -189,12 +194,12 @@ namespace BSR_Client
                         Announce("Shooting " + target);
                     EBullet bullet = Bullets[0];
                     Bullets.RemoveAt(0);
-                    Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Send(Sync);
+                    Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Send(Sync);
                     bool again = CanShootAgain;
                     bool wasAbleToShootAgain = CanShootAgain;
                     if (CanShootAgain)
                         CanShootAgain = false;
-                    PlaySfx(bullet == EBullet.Live);
+                    PlaySfx(bullet == EBullet.Live, NextShotGunpowdered);
                     if (bullet == EBullet.Live)
                     {
                         int damage = 1;
@@ -258,6 +263,11 @@ namespace BSR_Client
             PacketHandled = false;
             Dispatcher.Invoke(() =>
             {
+                if (data.GetVersion() != GetGameVersion())
+                {
+                    MessageBox.Show("Version Mismatch", "Error");
+                    Environment.Exit(0);
+                }
                 switch (data.GetId())
                 {
                     case EPacket.Connect:
@@ -306,6 +316,7 @@ namespace BSR_Client
                         string sender = data.ReadStr(0);
                         string target = data.ReadStr(1);
                         bool self = data.ReadBool(2);
+                        bool gunpowdered = data.ReadBool(4);
                         if (self)
                             target = "themselves";
                         else if (target == MyName)
@@ -313,7 +324,7 @@ namespace BSR_Client
                         Announce(sender + " shoots " + target);
                         Bullets.RemoveAt(0);
                         bool blank = data.ReadBool(3);
-                        PlaySfx(!blank);
+                        PlaySfx(!blank, gunpowdered);
                         if (!blank)
                         {
                             Announce("*Boom* the bullet was a live");

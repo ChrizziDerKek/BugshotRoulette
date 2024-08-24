@@ -70,6 +70,7 @@ namespace BSR_Client
         {
             Players.Remove(player);
             PlayerTurns.Remove(player);
+            Playerlist.Items.Remove(player);
             int it = 0;
             foreach (Button b in Elements.Players)
             {
@@ -205,6 +206,7 @@ namespace BSR_Client
             if (Players.Contains(username))
                 return false;
             Players.Add(username);
+            Playerlist.Items.Insert(0, username);
             for (int i = 0; i < Elements.Players.Length; i++)
             {
                 if (IsPlayerSlot(Elements.Players[i], "None"))
@@ -397,7 +399,7 @@ namespace BSR_Client
                     Elements.Items[i].Visibility = Visibility.Hidden;
         }
 
-        public EItem UseItem(string slot)
+        public EItem UseItem(string slot, bool sync)
         {
             Button it = null;
             for (int i = 0; i < Elements.Items.Length; i++)
@@ -412,8 +414,11 @@ namespace BSR_Client
                 return EItem.Nothing;
             if (Enum.TryParse(GetItemType(it), out EItem item))
             {
-                Announce("You used " + item.ToString());
-                Packet.Create(EPacket.UseItem).Add(MyName).Add(item.ToString()).Send(Sync);
+                if (sync)
+                {
+                    Announce("You used " + item.ToString());
+                    Packet.Create(EPacket.UseItem).Add(MyName).Add(item.ToString()).Send(Sync);
+                }
                 SetItemData(it, EItem.Nothing);
                 it.IsEnabled = false;
                 return item;
@@ -475,12 +480,20 @@ namespace BSR_Client
             }
         }
 
-        public void PlaySfx(bool live)
+        public void PlaySfx(bool live, bool gunpowdered)
         {
             if (live)
             {
-                Sound.Shot.Position = TimeSpan.Zero;
-                Sound.Shot.Play();
+                if (gunpowdered)
+                {
+                    Sound.GunpowderShot.Position = TimeSpan.Zero;
+                    Sound.GunpowderShot.Play();
+                }
+                else
+                {
+                    Sound.Shot.Position = TimeSpan.Zero;
+                    Sound.Shot.Play();
+                }
             }
             else
             {
@@ -528,6 +541,22 @@ namespace BSR_Client
                 case EItem.Adrenaline:
                     Sound.Adrenaline.Position = TimeSpan.Zero;
                     Sound.Adrenaline.Play();
+                    break;
+                case EItem.Magazine:
+                    Sound.Magazine.Position = TimeSpan.Zero;
+                    Sound.Magazine.Play();
+                    break;
+                case EItem.Gunpowder:
+                    Sound.Gunpowder.Position = TimeSpan.Zero;
+                    Sound.Gunpowder.Play();
+                    break;
+                //case EItem.Bullet:
+                //    Sound.Bullet.Position = TimeSpan.Zero;
+                //    Sound.Bullet.Play();
+                //    break;
+                case EItem.Trashbin:
+                    Sound.Trashbin.Position = TimeSpan.Zero;
+                    Sound.Trashbin.Play();
                     break;
             }
         }

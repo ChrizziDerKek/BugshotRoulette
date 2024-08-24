@@ -27,6 +27,7 @@ namespace BSR_Client
         {
             Lock.WaitOne();
             message = "$" + message;
+            message = message.Replace("#$#$#", Owner.GetGameVersion());
             Task.Delay(100).Wait();
             byte[] buffer = Encoding.UTF8.GetBytes(message);
             Stream.Write(buffer, 0, buffer.Length);
@@ -69,7 +70,7 @@ namespace BSR_Client
 
         public static Packet Create(EPacket pack)
         {
-            return new Packet() { Id = pack, Data = new List<string>() };
+            return new Packet() { Id = pack, Data = new List<string>() { "#$#$#" } };
         }
 
         public EPacket GetId()
@@ -117,19 +118,12 @@ namespace BSR_Client
                 Data.Add(temp[i]);
         }
 
-        public string ReadStr(int idx)
-        {
-            return Data[idx];
-        }
+        public string ReadStr(int idx) => Data[idx + 1];
 
-        public int ReadInt(int idx)
-        {
-            return int.Parse(Data[idx]);
-        }
+        public int ReadInt(int idx) => int.Parse(Data[idx + 1]);
 
-        public bool ReadBool(int idx)
-        {
-            return Data[idx] != "0";
-        }
+        public bool ReadBool(int idx) => Data[idx + 1] != "0";
+
+        public string GetVersion() => Data[0];
     }
 }
