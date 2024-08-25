@@ -262,6 +262,12 @@ namespace BSR_Client
             return Shoot.IsEnabled;
         }
 
+        public void BlockPlayers()
+        {
+            foreach (Button i in Elements.Players)
+                i.IsEnabled = false;
+        }
+
         public void SetActive(bool active)
         {
             Shoot.IsEnabled = active;
@@ -376,10 +382,14 @@ namespace BSR_Client
             if (slot == null)
                 return;
             slot.Visibility = type == EItem.Nothing ? Visibility.Hidden : Visibility.Visible;
-            if (type == EItem.Nothing)
-                slot.ToolTip = null;
-            else
-                slot.ToolTip = type.ToString() + "\n\n" + ItemDescriptions[type];
+            if (type != EItem.Nothing)
+            {
+                string desc;
+                if (!ItemDescriptions.TryGetValue(type, out desc))
+                    desc = "NO DESCRIPTION";
+                slot.ToolTip = type.ToString() + "\n\n" + desc;
+            }
+            else slot.ToolTip = null;
             if (!(slot.Content is Grid))
                 return;
             UIElement text = (slot.Content as Grid).Children[1];
@@ -501,9 +511,19 @@ namespace BSR_Client
 
         public void UnlockItems()
         {
+            if (LockedItems)
+                return;
             for (int i = 0; i < Elements.Items.Length; i++)
                 if (!IsItemSlot(Elements.Items[i], "Nothing"))
                     Elements.Items[i].IsEnabled = true;
+        }
+
+        public void LockItems()
+        {
+            LockedItems = true;
+            for (int i = 0; i < Elements.Items.Length; i++)
+                if (!IsItemSlot(Elements.Items[i], "Nothing"))
+                    Elements.Items[i].IsEnabled = false;
         }
 
         public bool ProcessIsRunning()

@@ -120,6 +120,12 @@ namespace BSR_Client
                         Packet.Create(EPacket.ItemTrashed).Add(MyName).Add(item.ToString()).Add(newitem.ToString()).Send(Sync);
                         return;
                     }
+                    if (BlockItems && CanUseOneItem)
+                    {
+                        LockItems();
+                        BlockItems = false;
+                        CanUseOneItem = false;
+                    }
                     PlaySfx(item);
                     switch (item)
                     {
@@ -206,6 +212,16 @@ namespace BSR_Client
                             if (GetItemCount() > 0)
                                 UsedTrashBin = true;
                             break;
+                        case EItem.Heroine:
+                            UsedHeroine = true;
+                            PreparePlayerItem();
+                            Announce("Select a player to give them Heroine");
+                            break;
+                        case EItem.Katana:
+                            UsedKatana = true;
+                            PreparePlayerItem();
+                            Announce("Select a player to use the Katana on");
+                            break;
                     }
                     break;
                 case "Player1":
@@ -219,6 +235,20 @@ namespace BSR_Client
                         SaveItems();
                         string target = Players[int.Parse(action.Replace("Player", "")) - 1];
                         Packet.Create(EPacket.RequestItems).Add(target).Add(MyName).Send(Sync);
+                        BlockPlayers();
+                    }
+                    if (UsedHeroine || UsedKatana)
+                    {
+                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        Packet.Create(EPacket.BlockItemUsage).Add(target).Add(UsedKatana).Send(Sync);
+                        if (UsedHeroine)
+                            Announce("Gave Heroine to " + target);
+                        else
+                            Announce("Used Katana on " + target);
+                        UsedHeroine = false;
+                        UsedKatana = false;
+                        Shoot.IsEnabled = true;
+                        BlockPlayers();
                     }
                     if (UsedShotgun)
                     {
@@ -340,6 +370,7 @@ namespace BSR_Client
                             else
                             {
                                 yourturn = true;
+                                LockedItems = false;
                                 SetActive(true);
                             }
                         }
@@ -350,6 +381,18 @@ namespace BSR_Client
                         {
                             Announce("Your turn");
                             UnlockItems();
+                            if (BlockItems)
+                            {
+                                if (CanUseOneItem)
+                                    Announce("You can only use 1 item this round");
+                                else
+                                    Announce("You can't use items this round");
+                                if (!CanUseOneItem)
+                                {
+                                    LockItems();
+                                    BlockItems = false;
+                                }
+                            }
                         }
                         break;
                     case EPacket.Shoot:
@@ -488,6 +531,17 @@ namespace BSR_Client
                             stealtarget = "you";
                         }
                         Announce(data.ReadStr(0) + " stole " + data.ReadStr(3) + " from " + stealtarget);
+                        break;
+                    case EPacket.BlockItemUsage:
+                        if (MyName == data.ReadStr(0))
+                        {
+                            BlockItems = true;
+                            CanUseOneItem = data.ReadBool(1);
+                            if (CanUseOneItem)
+                                Announce("You can only use 1 item next round");
+                            else
+                                Announce("You can't use items next round");
+                        }
                         break;
                 }
                 PacketHandled = true;

@@ -31,6 +31,7 @@ namespace BSR_Client
         RequestItems,
         RequestItemsAck,
         StealItem,
+        BlockItemUsage,
     }
 
     public enum EBullet
@@ -55,6 +56,8 @@ namespace BSR_Client
         Gunpowder,
         //Bullet,
         Trashbin,
+        Heroine,
+        Katana,
         Count,
     }
 
@@ -92,6 +95,11 @@ namespace BSR_Client
         private bool UsedShotgun = false;
         private bool UsedAdrenaline = false;
         private bool AreItemsCloned = false;
+        private bool UsedHeroine = false;
+        private bool UsedKatana = false;
+        private bool BlockItems = false;
+        private bool CanUseOneItem = false;
+        private bool LockedItems = false;
         private EDebugMode DebugMode = EDebugMode.None;
         private string ItemCloneTarget = "";
         private string GameVersion = "";
@@ -114,6 +122,8 @@ namespace BSR_Client
             { EItem.Gunpowder, "Has a 50/50 chance of dealing 3 damage or exploding in the barrel and dealing 2 to yourself\nCan be combined with a saw to deal 4 damage or 3 to yourself" },
             //{ EItem.Bullet, "Loads a new random bullet type into the gun\nAlways appears at the end of the round" },
             { EItem.Trashbin, "Allows you to throw away an item and receive a different one" },
+            { EItem.Heroine, "Select a player to give them heroine\nThey can't use an item in their next round" },
+            { EItem.Katana, "Select a player to cut their fingers off\nThey can only use 1 item in their next round" },
             { EItem.Count, null },
         };
 

@@ -119,13 +119,16 @@
     <Content Include="sounds\bsr_gunpowder.wav" />
     <Content Include="sounds\bsr_gunpowder_shot.wav" />
     <Content Include="sounds\bsr_handcuff.wav" />
+    <Content Include="sounds\bsr_heroine.wav" />
     <Content Include="sounds\bsr_inverter.wav" />
+    <Content Include="sounds\bsr_katana.wav" />
     <Content Include="sounds\bsr_magazine.wav" />
     <Content Include="sounds\bsr_magnify.wav" />
     <Content Include="sounds\bsr_saw.wav" />
     <Content Include="sounds\bsr_shot.wav" />
     <Content Include="sounds\bsr_title.wav" />
     <Content Include="sounds\bsr_trashbin.wav" />
+    <Resource Include="textures\katana.png" />
     <Resource Include="textures\bullet.png" />
     <Resource Include="textures\gunpowder.png" />
     <Resource Include="textures\healingbullet.png" />
