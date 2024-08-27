@@ -74,6 +74,7 @@ namespace BSR_Client
             Players.Remove(player);
             PlayerTurns.Remove(player);
             Playerlist.Items.Remove(player);
+            PlayersAlive--;
             int it = 0;
             foreach (Button b in Elements.Players)
             {
@@ -384,8 +385,7 @@ namespace BSR_Client
             slot.Visibility = type == EItem.Nothing ? Visibility.Hidden : Visibility.Visible;
             if (type != EItem.Nothing)
             {
-                string desc;
-                if (!ItemDescriptions.TryGetValue(type, out desc))
+                if (!ItemDescriptions.TryGetValue(type, out string desc))
                     desc = "NO DESCRIPTION";
                 slot.ToolTip = type.ToString() + "\n\n" + desc;
             }
@@ -721,6 +721,19 @@ namespace BSR_Client
                 if (!int.TryParse(s, out int value) || value > 0xFF || value < 0)
                     return false;
             return true;
+        }
+
+        public string GetPlayerFromSlot(int slotId)
+        {
+            Button slot = Elements.Players[slotId];
+            if (slot == null)
+                return null;
+            if (!(slot.Content is Grid))
+                return null;
+            UIElement text = (slot.Content as Grid).Children[1];
+            if (!(text is TextBlock))
+                return null;
+            return (text as TextBlock).Text;
         }
     }
 }

@@ -233,13 +233,13 @@ namespace BSR_Client
                     {
                         UsedAdrenaline = false;
                         SaveItems();
-                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        string target = GetPlayerFromSlot(int.Parse(action.Replace("Player", "")) - 1);
                         Packet.Create(EPacket.RequestItems).Add(target).Add(MyName).Send(Sync);
                         BlockPlayers();
                     }
                     if (UsedHeroine || UsedKatana)
                     {
-                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        string target = GetPlayerFromSlot(int.Parse(action.Replace("Player", "")) - 1);
                         Packet.Create(EPacket.BlockItemUsage).Add(target).Add(UsedKatana).Send(Sync);
                         if (UsedHeroine)
                             Announce("Gave Heroine to " + target);
@@ -249,11 +249,12 @@ namespace BSR_Client
                         UsedKatana = false;
                         Shoot.IsEnabled = true;
                         BlockPlayers();
+                        UnlockItems();
                     }
                     if (UsedShotgun)
                     {
                         UsedShotgun = false;
-                        string target = Players[int.Parse(action.Replace("Player", "")) - 1];
+                        string target = GetPlayerFromSlot(int.Parse(action.Replace("Player", "")) - 1);
                         bool you = target == MyName;
                         if (you)
                             Announce("Shooting yourself");
@@ -442,7 +443,7 @@ namespace BSR_Client
                         break;
                     case EPacket.Disconnect:
                         if (Players.Count == 2)
-                            Environment.Exit(0);
+                            ShowEndscreen();
                         RemovePlayer(data.ReadStr(0));
                         break;
                     case EPacket.UseItem:
