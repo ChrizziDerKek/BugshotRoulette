@@ -7,7 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
-using System.Xml.Linq;
 
 namespace BSR_Client
 {
@@ -64,7 +63,7 @@ namespace BSR_Client
 
         public void GenerateLives()
         {
-            int maxhealth = RNG.Next(5, 16);
+            int maxhealth = RNG.Next(7, 16);
             foreach (string player in Players)
                 UpdateLives(player, maxhealth, true, false, true);
         }
@@ -99,7 +98,14 @@ namespace BSR_Client
                 int start = (int)EItem.Nothing + 1;
                 if (DebugMode == EDebugMode.GetOwnItems)
                     start = (int)EItem.Magazine;
-                EItem item = (EItem)RNG.Next(start, (int)EItem.Count);
+                EItem item;
+                do
+                {
+                    item = (EItem)RNG.Next(start, (int)EItem.Count);
+                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 3) != 0)
+                        item = (EItem)RNG.Next(start, (int)EItem.Count);
+                }
+                while (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(item) >= limit);
                 if (!SetItem(item))
                     continue;
                 msg += "#" + item.ToString();
@@ -118,6 +124,15 @@ namespace BSR_Client
             int count = 0;
             for (int i = 0; i < Elements.Items.Length; i++)
                 if (!IsItemSlot(Elements.Items[i], "Nothing"))
+                    count++;
+            return count;
+        }
+
+        public int GetItemCount(EItem item)
+        {
+            int count = 0;
+            for (int i = 0; i < Elements.Items.Length; i++)
+                if (IsItemSlot(Elements.Items[i], item.ToString()))
                     count++;
             return count;
         }
@@ -158,7 +173,7 @@ namespace BSR_Client
         public void GenerateBullets(bool sync = true)
         {
             int randomDecision = RNG.Next(0, 100);
-            int count = randomDecision > 60 ? RNG.Next(2, 9) : RNG.Next(1, 3) * 2;  
+            int count = randomDecision > 40 ? RNG.Next(2, 9) : RNG.Next(1, 3) * 2;  
             int numblank = 0;
             switch (count)
             {
@@ -663,10 +678,10 @@ namespace BSR_Client
                     Sound.Gunpowder.Position = TimeSpan.Zero;
                     Sound.Gunpowder.Play();
                     break;
-                //case EItem.Bullet:
-                //    Sound.Bullet.Position = TimeSpan.Zero;
-                //    Sound.Bullet.Play();
-                //    break;
+                case EItem.Bullet:
+                    Sound.Bullet.Position = TimeSpan.Zero;
+                    Sound.Bullet.Play();
+                    break;
                 case EItem.Trashbin:
                     Sound.Trashbin.Position = TimeSpan.Zero;
                     Sound.Trashbin.Play();

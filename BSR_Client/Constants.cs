@@ -54,7 +54,7 @@ namespace BSR_Client
         Adrenaline,
         Magazine,
         Gunpowder,
-        //Bullet,
+        Bullet,
         Trashbin,
         Heroine,
         Katana,
@@ -126,11 +126,32 @@ namespace BSR_Client
             { EItem.Adrenaline, "Select a player to look at their items and steal one of them to use it immediately\nStealing adrenaline isn't possible" },
             { EItem.Magazine, "Generates a new set of bullets" },
             { EItem.Gunpowder, "Has a 50/50 chance of dealing 3 damage or exploding in the barrel and dealing 2 to yourself\nCan be combined with a saw to deal 4 damage or 3 to yourself" },
-            //{ EItem.Bullet, "Loads a new random bullet type into the gun\nAlways appears at the end of the round" },
+            { EItem.Bullet, "Loads a new random bullet type into the gun\nAlways appears at the end of the round" },
             { EItem.Trashbin, "Allows you to throw away an item and receive a different one" },
             { EItem.Heroine, "Select a player to give them heroine\nThey can't use an item in their next round" },
             { EItem.Katana, "Select a player to cut their fingers off\nThey can only use 1 item in their next round" },
             { EItem.Count, null },
+        };
+
+        private Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
+        {
+            { EItem.Nothing, 0 },
+            { EItem.Handcuffs, 2 },
+            { EItem.Cigarettes, 3 },
+            { EItem.Saw, 2 },
+            { EItem.Magnifying, 3 },
+            { EItem.Beer, 3 },
+            { EItem.Inverter, 2 },
+            { EItem.Medicine, 3 },
+            { EItem.Phone, 2 },
+            { EItem.Adrenaline, 2 },
+            { EItem.Magazine, 3 },
+            { EItem.Gunpowder, 2 },
+            { EItem.Bullet, 0 },
+            { EItem.Trashbin, 1 },
+            { EItem.Heroine, 1 },
+            { EItem.Katana, 1 },
+            { EItem.Count, 0 },
         };
 
         private List<EItem> ItemStorage = new List<EItem>();

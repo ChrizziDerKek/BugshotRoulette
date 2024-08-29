@@ -109,6 +109,12 @@ namespace BSR_Client
                         Packet.Create(EPacket.StealItem).Add(MyName).Add(ItemCloneTarget).Add(slot).Add(item.ToString()).Send(Sync);
                         Shoot.IsEnabled = true;
                     }
+                    if (BlockItems && CanUseOneItem && item != EItem.Trashbin)
+                    {
+                        LockItems();
+                        BlockItems = false;
+                        CanUseOneItem = false;
+                    }
                     if (UsedTrashBin)
                     {
                         UsedTrashBin = false;
@@ -118,13 +124,8 @@ namespace BSR_Client
                         SetItem(newitem, true);
                         Announce("You trashed " + item.ToString() + " and got: " + newitem.ToString());
                         Packet.Create(EPacket.ItemTrashed).Add(MyName).Add(item.ToString()).Add(newitem.ToString()).Send(Sync);
+                        Shoot.IsEnabled = true;
                         return;
-                    }
-                    if (BlockItems && CanUseOneItem)
-                    {
-                        LockItems();
-                        BlockItems = false;
-                        CanUseOneItem = false;
                     }
                     PlaySfx(item);
                     switch (item)
@@ -185,12 +186,6 @@ namespace BSR_Client
                             Announce(numbers[num] + " Bullet: " + InitialBullets[num].ToString());
                             break;
                         case EItem.Adrenaline:
-                            //EItem newitem;
-                            //do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
-                            //while (newitem == EItem.Adrenaline);
-                            //SetItem(newitem, true);
-                            //Announce("You got: " + newitem.ToString());
-                            //Packet.Create(EPacket.ReceiveItems).Add(MyName).Add(1).Add(false).Add(newitem.ToString()).Send(Sync);
                             UsedAdrenaline = true;
                             PreparePlayerItem();
                             Announce("Select a player to see their items");
@@ -203,14 +198,17 @@ namespace BSR_Client
                         case EItem.Gunpowder:
                             NextShotGunpowdered = true;
                             break;
-                        //case EItem.Bullet:
-                        //    bool live = RNG.Next(0, 2) == 0;
-                        //    Bullets.Add(live ? EBullet.Live : EBullet.Blank);
-                        //    Packet.Create(EPacket.ExtraBullet).Add(live).Send(Sync);
-                        //    break;
+                        case EItem.Bullet:
+                            bool live = RNG.Next(0, 2) == 0;
+                            Bullets.Add(live ? EBullet.Live : EBullet.Blank);
+                            Packet.Create(EPacket.ExtraBullet).Add(live).Send(Sync);
+                            break;
                         case EItem.Trashbin:
                             if (GetItemCount() > 0)
+                            {
+                                Shoot.IsEnabled = false;
                                 UsedTrashBin = true;
+                            }
                             break;
                         case EItem.Heroine:
                             UsedHeroine = true;
