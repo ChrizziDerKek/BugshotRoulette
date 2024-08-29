@@ -102,6 +102,12 @@ namespace BSR_Client
         private bool LockedItems = false;
         private EDebugMode DebugMode = EDebugMode.None;
         private string ItemCloneTarget = "";
+        private int NCigs = 0;
+        private int NBeers = 0;
+        private int NHeros = 0;
+        private int NMags = 0;
+        private int NTrash = 0;
+        private int NDamage = 0;
         private string GameVersion = "";
 
         public string GetGameVersion() => GameVersion;
@@ -169,6 +175,8 @@ namespace BSR_Client
             public MediaPlayer Gunpowder = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Bullet = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Trashbin = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Heroine = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Katana = new MediaPlayer() { Volume = 1.0 };
 
             public void Media_Ended(object sender, EventArgs e)
             {
@@ -198,6 +206,8 @@ namespace BSR_Client
                 Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
                 Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
                 Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
+                Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
+                Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
 
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;

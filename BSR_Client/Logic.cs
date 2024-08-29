@@ -145,6 +145,8 @@ namespace BSR_Client
                 }
                 it++;
             }
+            if (player == MyName && lose)
+                NDamage += lives;
             if (player == MyName && GetHealth() <= 0)
             {
                 Dead();
@@ -497,6 +499,24 @@ namespace BSR_Client
                 return EItem.Nothing;
             if (Enum.TryParse(GetItemType(it), out EItem item))
             {
+                switch (item)
+                {
+                    case EItem.Cigarettes:
+                        NCigs++;
+                        break;
+                    case EItem.Beer:
+                        NBeers++;
+                        break;
+                    case EItem.Heroine:
+                        NHeros++;
+                        break;
+                    case EItem.Magazine:
+                        NMags++;
+                        break;
+                    case EItem.Trashbin:
+                        NTrash++;
+                        break;
+                }
                 if (sync)
                 {
                     Announce("You used " + item.ToString());
@@ -651,6 +671,14 @@ namespace BSR_Client
                     Sound.Trashbin.Position = TimeSpan.Zero;
                     Sound.Trashbin.Play();
                     break;
+                case EItem.Heroine:
+                    Sound.Heroine.Position = TimeSpan.Zero;
+                    Sound.Heroine.Play();
+                    break;
+                case EItem.Katana:
+                    Sound.Katana.Position = TimeSpan.Zero;
+                    Sound.Katana.Play();
+                    break;
             }
         }
 
@@ -734,6 +762,18 @@ namespace BSR_Client
             if (!(text is TextBlock))
                 return null;
             return (text as TextBlock).Text;
+        }
+
+        public int GetScore()
+        {
+            int score = 70000;
+            score -= (NDamage / 5) * 2000;
+            score -= NCigs * 220;
+            score -= NBeers * 495;
+            score -= NHeros * 445;
+            score -= NMags * 350;
+            score -= NTrash * 380;
+            return score;
         }
     }
 }
