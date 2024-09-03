@@ -18,7 +18,6 @@ namespace BSR_Client
         DebugInfo,
         Shoot,
         SetBullets,
-        HideBullets,
         UpdateLives,
         ReceiveItems,
         Disconnect,
@@ -32,6 +31,9 @@ namespace BSR_Client
         RequestItemsAck,
         StealItem,
         BlockItemUsage,
+        ResetGame,
+        SwapItems,
+        SwapItemsAck,
     }
 
     public enum EBullet
@@ -58,6 +60,8 @@ namespace BSR_Client
         Trashbin,
         Heroine,
         Katana,
+        Swapper,
+        Hat,
         Count,
     }
 
@@ -100,6 +104,7 @@ namespace BSR_Client
         private bool BlockItems = false;
         private bool CanUseOneItem = false;
         private bool LockedItems = false;
+        private bool UsedSwapper = false;
         private EDebugMode DebugMode = EDebugMode.None;
         private string ItemCloneTarget = "";
         private int NCigs = 0;
@@ -130,6 +135,8 @@ namespace BSR_Client
             { EItem.Trashbin, "Allows you to throw away an item and receive a different one" },
             { EItem.Heroine, "Select a player to give them heroine\nThey can't use an item in their next round" },
             { EItem.Katana, "Select a player to cut their fingers off\nThey can only use 1 item in their next round" },
+            { EItem.Swapper, "Swaps your items with the ones with the selected player" },
+            { EItem.Hat, "Hides the bullets for every player" },
             { EItem.Count, null },
         };
 
@@ -151,6 +158,8 @@ namespace BSR_Client
             { EItem.Trashbin, 1 },
             { EItem.Heroine, 1 },
             { EItem.Katana, 1 },
+            { EItem.Swapper, 1 },
+            { EItem.Hat, 2 },
             { EItem.Count, 0 },
         };
 
@@ -198,6 +207,8 @@ namespace BSR_Client
             public MediaPlayer Trashbin = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Heroine = new MediaPlayer() { Volume = 1.0 };
             public MediaPlayer Katana = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Swapper = new MediaPlayer() { Volume = 1.0 };
+            public MediaPlayer Hat = new MediaPlayer() { Volume = 1.0 };
 
             public void Media_Ended(object sender, EventArgs e)
             {
@@ -229,6 +240,8 @@ namespace BSR_Client
                 Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
                 Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
                 Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
+                Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
+                Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
 
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;

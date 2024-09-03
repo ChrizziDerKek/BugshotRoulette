@@ -128,6 +128,7 @@
     <Content Include="sounds\bsr_shot.wav" />
     <Content Include="sounds\bsr_title.wav" />
     <Content Include="sounds\bsr_trashbin.wav" />
+    <Resource Include="textures\hat.png" />
     <Resource Include="textures\katana.png" />
     <Resource Include="textures\bullet.png" />
     <Resource Include="textures\gunpowder.png" />

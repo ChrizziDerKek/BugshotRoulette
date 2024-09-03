@@ -1,17 +1,74 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
+using System.Windows.Shapes;
 
 namespace BSR_Client
 {
     public partial class MainWindow
     {
+        public void StartGame(bool resetsync = false)
+        {
+            if (resetsync)
+                Packet.Create(EPacket.ResetGame).Send(Sync);
+            Packet temp = Packet.Create(EPacket.StartGame);
+            foreach (string p in Players)
+            {
+                temp = temp.Add(p);
+                PlayerTurns.Add(p);
+            }
+            PlayersAlive = Players.Count;
+            temp.Send(Sync);
+            Login.Visibility = Visibility.Hidden;
+            Game.Visibility = Visibility.Visible;
+            GenerateBullets();
+            GenerateLives();
+            GenerateItems(true, 0);
+            HideEmptyItemSlots();
+            Packet.Create(EPacket.SetPlayer).Add(Players[0]).Send(Sync);
+            SetActive(true);
+            Announce("Your turn");
+            UnlockItems();
+            PlayBackground(RNG.Next(1, 3), true);
+            HideInactivePlayers();
+        }
+
+        public void ResetState()
+        {
+            DeadPlayers.Clear();
+            PlayerTurns.Clear();
+            PlayersAlive = 0;
+            Bullets.Clear();
+            InitialBullets = new EBullet[8];
+            InitialBulletCount = 0;
+            NextShotSawed = false;
+            NextShotGunpowdered = false;
+            CanShootAgain = false;
+            UsedTrashBin = false;
+            UsedShotgun = false;
+            UsedAdrenaline = false;
+            AreItemsCloned = false;
+            UsedHeroine = false;
+            UsedKatana = false;
+            BlockItems = false;
+            CanUseOneItem = false;
+            LockedItems = false;
+            ItemCloneTarget = "";
+            UsedSwapper = false;
+            ItemStorage.Clear();
+            for (int i = 0; i < Elements.Bullets.Length; i++)
+                Elements.Bullets[i].Fill = Brushes.Transparent;
+            foreach (string p in Players)
+                SetCalm(p);
+            for (int i = 0; i < Elements.Items.Length; i++)
+                SetItemData(Elements.Items[i], EItem.Nothing);
+        }
+
         public void ShowBullets(EBullet[] bullets)
         {
             if (bullets.Length > 8)
@@ -34,6 +91,30 @@ namespace BSR_Client
         {
             for (int i = 0; i < Elements.Bullets.Length; i++)
                 Elements.Bullets[i].Fill = Brushes.Transparent;
+        }
+
+        public void RemoveBulletMarker(EBullet type)
+        {
+            foreach (Rectangle bullet in Elements.Bullets)
+            {
+                switch (type)
+                {
+                    case EBullet.Live:
+                        if (bullet.Fill == Brushes.Red)
+                        {
+                            bullet.Fill = Brushes.Transparent;
+                            return;
+                        }
+                        break;
+                    case EBullet.Blank:
+                        if (bullet.Fill == Brushes.Gray)
+                        {
+                            bullet.Fill = Brushes.Transparent;
+                            return;
+                        }
+                        break;
+                }
+            }
         }
 
         public void Dead()
@@ -102,7 +183,7 @@ namespace BSR_Client
                 do
                 {
                     item = (EItem)RNG.Next(start, (int)EItem.Count);
-                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 3) != 0)
+                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 4) != 0)
                         item = (EItem)RNG.Next(start, (int)EItem.Count);
                 }
                 while (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(item) >= limit);
@@ -370,6 +451,18 @@ namespace BSR_Client
                 if (IsPlayerSlot(i, player))
                 {
                     SetPlayerData(i, "", false);
+                    break;
+                }
+            }
+        }
+
+        public void SetCalm(string player)
+        {
+            foreach (Button i in Elements.Players)
+            {
+                if (IsPlayerSlot(i, player))
+                {
+                    SetPlayerData(i, "", true);
                     break;
                 }
             }
@@ -693,6 +786,14 @@ namespace BSR_Client
                 case EItem.Katana:
                     Sound.Katana.Position = TimeSpan.Zero;
                     Sound.Katana.Play();
+                    break;
+                case EItem.Swapper:
+                    Sound.Swapper.Position = TimeSpan.Zero;
+                    Sound.Swapper.Play();
+                    break;
+                case EItem.Hat:
+                    Sound.Hat.Position = TimeSpan.Zero;
+                    Sound.Hat.Play();
                     break;
             }
         }

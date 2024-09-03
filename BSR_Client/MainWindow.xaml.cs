@@ -4,8 +4,9 @@ using System.Windows.Controls;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Windows.Documents;
 using System.Windows.Markup;
-using System.Net.Sockets;
+using static System.Collections.Specialized.BitVector32;
 
 namespace BSR_Client
 {
@@ -56,34 +57,17 @@ namespace BSR_Client
                     Start.Content = Players.Count > 1 ? "Start Game" : "";
                     Connect.Content = "";
                     break;
+                case "Restart":
+                    ResetState();
+                    StartGame(true);
+                    break;
                 case "Start":
                     if ((sender as Button).Content.ToString() == "")
                         return;
-                    Packet temp = Packet.Create(EPacket.StartGame);
-                    foreach (string p in Players)
-                    {
-                        temp = temp.Add(p);
-                        PlayerTurns.Add(p);
-                    }
-                    PlayersAlive = Players.Count;
-                    temp.Send(Sync);
-                    Login.Visibility = Visibility.Hidden;
-                    Game.Visibility = Visibility.Visible;
-                    GenerateBullets();
-                    GenerateLives();
-                    GenerateItems(true, 0);
-                    HideEmptyItemSlots();
-                    Packet.Create(EPacket.SetPlayer).Add(Players[0]).Send(Sync);
-                    SetActive(true);
-                    Announce("Your turn");
-                    UnlockItems();
-                    PlayBackground(RNG.Next(1, 3), true);
-                    HideInactivePlayers();
+                    StartGame();
                     break;
                 case "Shoot":
                     UsedShotgun = true;
-                    Packet.Create(EPacket.HideBullets).Send(Sync);
-                    ResetBullets();
                     PrepareGun();
                     Announce("Select a player to shoot");
                     break;
@@ -95,8 +79,6 @@ namespace BSR_Client
                 case "Item6":
                 case "Item7":
                 case "Item8":
-                    Packet.Create(EPacket.HideBullets).Send(Sync);
-                    ResetBullets();
                     if (AreItemsCloned)
                         UsedTrashBin = false;
                     EItem item = UseItem(action, !UsedTrashBin);
@@ -120,7 +102,7 @@ namespace BSR_Client
                         UsedTrashBin = false;
                         EItem newitem;
                         do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
-                        while (newitem == EItem.Trashbin || newitem == item);
+                        while (newitem == EItem.Trashbin || newitem == EItem.Bullet || newitem == item);
                         SetItem(newitem, true);
                         Announce("You trashed " + item.ToString() + " and got: " + newitem.ToString());
                         Packet.Create(EPacket.ItemTrashed).Add(MyName).Add(item.ToString()).Add(newitem.ToString()).Send(Sync);
@@ -144,6 +126,7 @@ namespace BSR_Client
                             break;
                         case EItem.Beer:
                             Announce("Racked Bullet: " + Bullets[0].ToString());
+                            RemoveBulletMarker(Bullets[0]);
                             Bullets.RemoveAt(0);
                             if (Bullets.Count == 0)
                             {
@@ -220,6 +203,14 @@ namespace BSR_Client
                             PreparePlayerItem();
                             Announce("Select a player to use the Katana on");
                             break;
+                        case EItem.Swapper:
+                            UsedSwapper = true;
+                            PreparePlayerItem();
+                            Announce("Select a player to use the Swapper on");
+                            break;
+                        case EItem.Hat:
+                            ResetBullets();
+                            break;
                     }
                     break;
                 case "Player1":
@@ -227,6 +218,16 @@ namespace BSR_Client
                 case "Player3":
                 case "Player4":
                 case "Player5":
+                    if (UsedSwapper)
+                    {
+                        UsedSwapper = false;
+                        string target = GetPlayerFromSlot(int.Parse(action.Replace("Player", "")) - 1);
+                        List<string> itemlist = GetItemTypes();
+                        Packet temp = Packet.Create(EPacket.SwapItems).Add(MyName).Add(target).Add(itemlist.Count);
+                        foreach (string itemtype in itemlist)
+                            temp = temp.Add(itemtype);
+                        temp.Send(Sync);
+                    }
                     if (UsedAdrenaline)
                     {
                         UsedAdrenaline = false;
@@ -261,6 +262,7 @@ namespace BSR_Client
                         EBullet bullet = Bullets[0];
                         Bullets.RemoveAt(0);
                         Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Send(Sync);
+                        RemoveBulletMarker(bullet);
                         bool again = CanShootAgain;
                         bool wasAbleToShootAgain = CanShootAgain;
                         if (CanShootAgain)
@@ -417,6 +419,7 @@ namespace BSR_Client
                             }
                         }
                         else Announce("*Click* the bullet was a blank");
+                        RemoveBulletMarker(blank ? EBullet.Blank : EBullet.Live);
                         break;
                     case EPacket.SetBullets:
                         Bullets.Clear();
@@ -426,9 +429,6 @@ namespace BSR_Client
                             ShowBullets(Bullets.ToArray());
                         Bullets.CopyTo(InitialBullets);
                         InitialBulletCount = Bullets.Count;
-                        break;
-                    case EPacket.HideBullets:
-                        ResetBullets();
                         break;
                     case EPacket.UpdateLives:
                         UpdateLives(data.ReadStr(0), data.ReadInt(1), data.ReadBool(2), data.ReadBool(3), false);
@@ -453,6 +453,7 @@ namespace BSR_Client
                             {
                                 case EItem.Beer:
                                     Announce("Racked Bullet: " + Bullets[0].ToString());
+                                    RemoveBulletMarker(Bullets[0]);
                                     Bullets.RemoveAt(0);
                                     break;
                                 case EItem.Inverter:
@@ -460,6 +461,9 @@ namespace BSR_Client
                                     break;
                                 case EItem.Magazine:
                                     Bullets.Clear();
+                                    break;
+                                case EItem.Hat:
+                                    ResetBullets();
                                     break;
                             }
                         }
@@ -541,6 +545,32 @@ namespace BSR_Client
                             else
                                 Announce("You can't use items next round");
                         }
+                        break;
+                    case EPacket.ResetGame:
+                        ResetState();
+                        break;
+                    case EPacket.SwapItems:
+                        if (data.ReadStr(1) == MyName)
+                        {
+                            List<string> itemlist = GetItemTypes();
+                            Packet temp = Packet.Create(EPacket.SwapItemsAck).Add(MyName).Add(data.ReadStr(0)).Add(itemlist.Count);
+                            foreach (string itemtype in itemlist)
+                                temp = temp.Add(itemtype);
+                            temp.Send(Sync);
+                            for (int i = 0; i < data.ReadInt(2); i++)
+                                if (Enum.TryParse(data.ReadStr(3 + i), out EItem it))
+                                    ForceSetItem(i, it);
+                            Announce("Swapped items with " + data.ReadStr(1));
+                        }
+                        break;
+                    case EPacket.SwapItemsAck:
+                        if (data.ReadStr(1) == MyName)
+                        {
+                            for (int i = 0; i < data.ReadInt(2); i++)
+                                if (Enum.TryParse(data.ReadStr(3 + i), out EItem it))
+                                    ForceSetItem(i, it);
+                            Announce("Swapped items with " + data.ReadStr(1));
+                        } 
                         break;
                 }
                 PacketHandled = true;
