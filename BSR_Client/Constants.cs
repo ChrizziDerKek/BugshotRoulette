@@ -105,6 +105,7 @@ namespace BSR_Client
         private bool CanUseOneItem = false;
         private bool LockedItems = false;
         private bool UsedSwapper = false;
+        private bool BulletIsInverted = false;
         private EDebugMode DebugMode = EDebugMode.None;
         private string ItemCloneTarget = "";
         private int NCigs = 0;

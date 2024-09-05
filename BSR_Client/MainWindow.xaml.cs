@@ -148,6 +148,7 @@ namespace BSR_Client
                                 //Announce("Inverted blank Bullet to live");
                                 Bullets[0] = EBullet.Live;
                             }
+                            BulletIsInverted = !BulletIsInverted;
                             break;
                         case EItem.Medicine:
                             bool fail = RNG.Next(0, 2) == 0;
@@ -175,6 +176,7 @@ namespace BSR_Client
                             break;
                         case EItem.Magazine:
                             Bullets.Clear();
+                            ResetBullets();
                             GenerateBullets();
                             UnlockItems();
                             break;
@@ -227,6 +229,8 @@ namespace BSR_Client
                         foreach (string itemtype in itemlist)
                             temp = temp.Add(itemtype);
                         temp.Send(Sync);
+                        SetActive(true);
+                        UnlockItems();
                     }
                     if (UsedAdrenaline)
                     {
@@ -261,8 +265,17 @@ namespace BSR_Client
                             Announce("Shooting " + target);
                         EBullet bullet = Bullets[0];
                         Bullets.RemoveAt(0);
-                        Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Send(Sync);
-                        RemoveBulletMarker(bullet);
+                        bool willBackfire = RNG.Next(0, 2) == 0;
+                        if (!NextShotGunpowdered)
+                            willBackfire = false;
+                        Packet.Create(EPacket.Shoot).Add(MyName).Add(target).Add(you).Add(bullet == EBullet.Blank).Add(NextShotGunpowdered).Add(BulletIsInverted).Add(willBackfire).Send(Sync);
+                        EBullet bulletToRemove = bullet;
+                        if (BulletIsInverted)
+                        {
+                            BulletIsInverted = false;
+                            bulletToRemove = bulletToRemove == EBullet.Live ? EBullet.Blank : EBullet.Live;
+                        }
+                        RemoveBulletMarker(bulletToRemove);
                         bool again = CanShootAgain;
                         bool wasAbleToShootAgain = CanShootAgain;
                         if (CanShootAgain)
@@ -276,7 +289,7 @@ namespace BSR_Client
                             if (NextShotGunpowdered)
                             {
                                 damage += 2;
-                                if (RNG.Next(0, 2) == 0)
+                                if (willBackfire)
                                 {
                                     damage--;
                                     target = MyName;
@@ -401,6 +414,7 @@ namespace BSR_Client
                         string target = data.ReadStr(1);
                         bool self = data.ReadBool(2);
                         bool gunpowdered = data.ReadBool(4);
+                        bool willbackfire = data.ReadBool(6);
                         if (self)
                             target = "themselves";
                         else if (target == MyName)
@@ -412,13 +426,16 @@ namespace BSR_Client
                         if (!blank)
                         {
                             Announce("*Boom* the bullet was a live");
-                            if (target == "you")
+                            if (target == "you" && !willbackfire)
                             {
                                 SetAngry(MyName);
                                 Packet.Create(EPacket.BecomeAngry).Add(MyName).Send(Sync);
                             }
                         }
                         else Announce("*Click* the bullet was a blank");
+                        bool inverted = data.ReadBool(5);
+                        if (inverted)
+                            blank = !blank;
                         RemoveBulletMarker(blank ? EBullet.Blank : EBullet.Live);
                         break;
                     case EPacket.SetBullets:
@@ -560,6 +577,7 @@ namespace BSR_Client
                             for (int i = 0; i < data.ReadInt(2); i++)
                                 if (Enum.TryParse(data.ReadStr(3 + i), out EItem it))
                                     ForceSetItem(i, it);
+                            LockItems();
                             Announce("Swapped items with " + data.ReadStr(1));
                         }
                         break;

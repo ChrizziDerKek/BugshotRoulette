@@ -122,6 +122,8 @@ namespace BSR_Client
             Announce("You died");
             PlayersAlive--;
             DeadPlayers.Add(MyName);
+            Shoot.IsEnabled = false;
+            LockItems();
             Packet.Create(EPacket.Dead).Add(MyName).Send(Sync);
         }
 
