@@ -4,9 +4,6 @@ using System.Windows.Controls;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Windows.Documents;
-using System.Windows.Markup;
-using static System.Collections.Specialized.BitVector32;
 
 namespace BSR_Client
 {
@@ -102,7 +99,7 @@ namespace BSR_Client
                         UsedTrashBin = false;
                         EItem newitem;
                         do newitem = (EItem)RNG.Next((int)EItem.Nothing + 1, (int)EItem.Count);
-                        while (newitem == EItem.Trashbin || newitem == EItem.Bullet || newitem == item);
+                        while (newitem == EItem.Trashbin || newitem == item || (ItemLimits.TryGetValue(newitem, out int value) && value == 0));
                         SetItem(newitem, true);
                         Announce("You trashed " + item.ToString() + " and got: " + newitem.ToString());
                         Packet.Create(EPacket.ItemTrashed).Add(MyName).Add(item.ToString()).Add(newitem.ToString()).Send(Sync);
@@ -478,6 +475,7 @@ namespace BSR_Client
                                     break;
                                 case EItem.Magazine:
                                     Bullets.Clear();
+                                    ResetBullets();
                                     break;
                                 case EItem.Hat:
                                     ResetBullets();

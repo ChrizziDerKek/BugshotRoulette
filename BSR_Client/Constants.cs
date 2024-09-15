@@ -4,9 +4,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
-#pragma warning disable IDE0079
-#pragma warning disable IDE0044
-
 namespace BSR_Client
 {
     public enum EPacket
@@ -78,16 +75,16 @@ namespace BSR_Client
 
     public partial class MainWindow
     {
-        private List<string> Players = new List<string>();
-        private List<string> DeadPlayers = new List<string>();
+        private readonly List<string> Players = new List<string>();
+        private readonly List<string> DeadPlayers = new List<string>();
         private int PlayersAlive = 0;
         private Client Sync = null;
         private string IP = "";
-        private int PORT = 19123;
+        private readonly int PORT = 19123;
         private string MyName;
-        private List<string> PlayerTurns = new List<string>();
-        private Random RNG = new Random();
-        private List<EBullet> Bullets = new List<EBullet>();
+        private readonly List<string> PlayerTurns = new List<string>();
+        private readonly Random RNG = new Random();
+        private readonly List<EBullet> Bullets = new List<EBullet>();
         private EBullet[] InitialBullets = new EBullet[8];
         private int InitialBulletCount = 0;
         private bool WasPlayingSounds = false;
@@ -114,11 +111,11 @@ namespace BSR_Client
         private int NMags = 0;
         private int NTrash = 0;
         private int NDamage = 0;
-        private string GameVersion = "";
+        private readonly string GameVersion = "";
 
         public string GetGameVersion() => GameVersion;
 
-        private Dictionary<EItem, string> ItemDescriptions = new Dictionary<EItem, string>()
+        private readonly Dictionary<EItem, string> ItemDescriptions = new Dictionary<EItem, string>()
         {
             { EItem.Nothing, null },
             { EItem.Handcuffs, "Skips the enemy's turns so you can shoot 2 times" },
@@ -141,7 +138,7 @@ namespace BSR_Client
             { EItem.Count, null },
         };
 
-        private Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
+        private readonly Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
             { EItem.Nothing, 0 },
             { EItem.Handcuffs, 2 },
@@ -160,11 +157,11 @@ namespace BSR_Client
             { EItem.Heroine, 1 },
             { EItem.Katana, 1 },
             { EItem.Swapper, 1 },
-            { EItem.Hat, 2 },
+            { EItem.Hat, 1 },
             { EItem.Count, 0 },
         };
 
-        private List<EItem> ItemStorage = new List<EItem>();
+        private readonly List<EItem> ItemStorage = new List<EItem>();
 
         private class ElementLib
         {
@@ -182,7 +179,7 @@ namespace BSR_Client
             }
         }
 
-        private ElementLib Elements = null;
+        private readonly ElementLib Elements = null;
 
         private class SoundLib
         {
@@ -251,6 +248,6 @@ namespace BSR_Client
             }
         }
 
-        private SoundLib Sound = new SoundLib();
+        private readonly SoundLib Sound = new SoundLib();
     }
 }
