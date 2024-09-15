@@ -17,6 +17,7 @@
 mono_crash.*
 
 # Build results
+textures_temp/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
