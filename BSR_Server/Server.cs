@@ -5,141 +5,292 @@ using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Net;
 using System.IO;
+using System.Runtime.CompilerServices;
 
-#pragma warning disable IDE0011
 #pragma warning disable IDE0058
 
-namespace BSR_Server
+namespace Server
 {
-    public class MessageEventArgs : EventArgs
+    public class Session
     {
-        public string Message { get; private set; }
-
-        public MessageEventArgs(string message)
-        {
-            Message = message;
-        }
-    }
-
-    public delegate void MessageEventHandler(object sender, MessageEventArgs e);
-
-    public class Worker
-    {
-        public event MessageEventHandler MessageReceived;
-        public event EventHandler Disconnected;
-        private readonly TcpClient Socket;
-        private readonly Stream Stream;
-
-        public Worker(TcpClient socket)
-        {
-            Socket = socket;
-            Stream = socket.GetStream();
-        }
-
-        public void Send(string message)
-        {
-            byte[] buffer = Encoding.UTF8.GetBytes(message);
-            Stream.Write(buffer, 0, buffer.Length);
-        }
-
-        public void Start()
-        {
-            Task.Run(Run);
-        }
-
-        private void Run()
-        {
-            byte[] buffer = new byte[0x1000];
-            try
-            {
-                while (true)
-                {
-                    int received = Stream.Read(buffer, 0, buffer.Length);
-                    if (received <= 0)
-                        break;
-                    string message = Encoding.UTF8.GetString(buffer, 0, received);
-                    MessageReceived?.Invoke(this, new MessageEventArgs(message));
-                }
-            }
-            catch (IOException) { }
-            catch (ObjectDisposedException) { }
-            Disconnected?.Invoke(this, EventArgs.Empty);
-        }
-
-        public void Close()
-        {
-            Socket.Close();
-        }
+        public string Host; //Player who created the session and can start the game
+        public List<string> Players; //All connected players
+        public Queue<string> NextHosts; //Backup hosts that will become host when the current one leaves
+        public bool Locked; //True if the session is full
     }
 
     public class Server
     {
-        private readonly TcpListener ServerSocket;
-        private readonly List<Worker> Workers;
+        private readonly TcpListener ServerSocket; //Server listener
+        private readonly List<ClientWorker> Clients; //Connected clients
+        private readonly Dictionary<string, Session> Sessions; //Opened sessions
 
+        /// <summary>
+        /// Creates a new server
+        /// </summary>
+        /// <param name="port">Port to listen to</param>
         public Server(int port)
         {
-            Workers = new List<Worker>();
+            Sessions = new Dictionary<string, Session>();
+            Clients = new List<ClientWorker>();
             ServerSocket = new TcpListener(IPAddress.Any, port);
             ServerSocket.Start();
         }
 
+        /// <summary>
+        /// Starts receiving and listening for clients
+        /// </summary>
         public void Start()
         {
             while (true)
             {
+                //Will halt the program until a new client connects
                 TcpClient socket = ServerSocket.AcceptTcpClient();
-                Worker w = new Worker(socket);
+                //Create a worker, add it to the list and start receiving
+                ClientWorker w = new ClientWorker(socket);
                 AddWorker(w);
                 w.Start();
             }
         }
 
-        private void AddWorker(Worker w)
+        /// <summary>
+        /// Adds a client to the list of connected clients
+        /// </summary>
+        /// <param name="w">Client</param>
+        private void AddWorker(ClientWorker w)
         {
             lock (this)
             {
-                Workers.Add(w);
-                w.Disconnected += Worker_Disconnected;
-                w.MessageReceived += Worker_MessageReceived;
+                //Adds a client to the list of clients and assigns events
+                Clients.Add(w);
+                w.OnDisconnected += Worker_OnDisconnected;
+                w.OnPacketReceived += Worker_OnPacketReceived;
             }
         }
 
-        private void RemoveWorker(Worker w)
+        /// <summary>
+        /// Checks if the clients are in the same session
+        /// </summary>
+        /// <param name="me">First client</param>
+        /// <param name="w">Second client</param>
+        /// <returns>True if the session matches</returns>
+        private bool IsInSession(ClientWorker me, ClientWorker w)
         {
-            lock (this)
-            {
-                w.Disconnected -= Worker_Disconnected;
-                w.MessageReceived -= Worker_MessageReceived;
-                Workers.Remove(w);
-                w.Close();
-            }
+            //Pending clients are never in a session
+            if (!w.DoesPlayerExist() || !me.DoesPlayerExist())
+                return false;
+            //Check if the client sessions match
+            return w.GetSession() == me.GetSession();
         }
 
-        private void Worker_MessageReceived(object sender, MessageEventArgs e) => Broadcast(sender as Worker, e.Message);
-
-        private void Worker_Disconnected(object sender, EventArgs e) => RemoveWorker(sender as Worker);
-
-        private void Broadcast(Worker sender, string message)
+        /// <summary>
+        /// Sends a packet to all clients that are connected to your session
+        /// </summary>
+        /// <param name="pack">Packet to send</param>
+        /// <param name="cli">Your client</param>
+        /// <param name="debugname">Debug log message</param>
+        /// <returns>Number of clients that received the packet</returns>
+        private int Broadcast(Packet pack, ClientWorker cli, string debugname)
         {
-            lock (this)
+            //Loop through all connected clients
+            for (int i = 0; i < Clients.Count; i++)
             {
-                for (int i = 0; i < Workers.Count; i++)
+                ClientWorker client = Clients[i];
+                try
                 {
-                    Worker w = Workers[i];
-                    if (w == sender)
+                    //Skip your own client
+                    if (client.GetToken() == cli.GetToken())
                         continue;
-                    try
-                    {
-                        w.Send(message);
-                        Console.WriteLine("Sent: " + message);
-                    }
-                    catch
-                    {
-                        Workers.RemoveAt(i--);
-                        w.Close();
-                    }
+                    //Skip all clients that aren't in the same session
+                    if (!IsInSession(cli, client))
+                        continue;
+                    //Send the packet to the current client
+                    Packet.Send(pack, client);
+                    if (!string.IsNullOrEmpty(debugname))
+                        Console.WriteLine("Sent {0} to {1}", debugname, client.GetPlayer());
                 }
+                catch
+                {
+                    //Remove the client if it disconnected while broadcasting a packet
+                    Clients.RemoveAt(i--);
+                    client.Dispose();
+                }
+            }
+            return Clients.Count;
+        }
+
+        /// <summary>
+        /// Handles a received packet
+        /// </summary>
+        /// <param name="sender">Client who sent the packet</param>
+        /// <param name="id">Packet id</param>
+        /// <param name="data">Raw packet data</param>
+        private void Worker_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
+        {
+            lock (this)
+            {
+                switch (id)
+                {
+                    case EPacket.Disconnected:
+                        {
+                            //A client disconnected from the server
+                            PacketDisconnected packet = new PacketDisconnected();
+                            Console.WriteLine(packet.ToString());
+                            //If it is a pending client, we just remove the client from our connected list
+                            if (sender.DoesPlayerExist())
+                            {
+                                //Otherwise we need to notify other clients
+                                Session session = Sessions[sender.GetSession()];
+                                string player = sender.GetPlayer();
+                                //Remove the client from its session
+                                session.Players.Remove(player);
+                                Console.WriteLine("Removed " + player + " from Session " + sender.GetSession());
+                                bool didMigrate = false;
+                                bool destroyed = false;
+                                if (session.Host == player)
+                                {
+                                    //We need to migrate a new host if the host left
+                                    do
+                                    {
+                                        //Get the next host in the queue
+                                        session.Host = session.NextHosts.Dequeue();
+                                        //If no hosts are left, the session is empty and we can destroy it
+                                        if (session.NextHosts.Count == 0)
+                                        {
+                                            Console.WriteLine("Destroying Session because no Players are left");
+                                            Sessions.Remove(sender.GetSession());
+                                            destroyed = true;
+                                            break;
+                                        }
+                                    }
+                                    while (!session.Players.Contains(session.Host));
+                                    if (!destroyed)
+                                    {
+                                        Console.WriteLine("New Host: " + session.Host);
+                                        didMigrate = true;
+                                    }
+                                }
+                                //If the session wasn't destroyed, we tell other clients to remove our player locally
+                                if (!destroyed)
+                                    Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.Host : null), sender, "Local Removal");
+                            }
+                            else Console.WriteLine("Disconnected pending Player");
+                            //Remove the client from the connected list
+                            Clients.Remove(sender);
+                            sender.Dispose();
+                        }
+                        break;
+                    case EPacket.JoinRequest:
+                        {
+                            PacketJoinRequest packet = new PacketJoinRequest(data);
+                            Console.WriteLine(packet.ToString());
+                            string session = packet.GetSession();
+                            string player = packet.GetPlayer();
+                            //Only these chars are allowed for players and sessions
+                            string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-%&/[]()?!.,#";
+                            //Create a response that indicates if the join will succeed
+                            EJoinResponse response = EJoinResponse.Pending;
+                            //Check if the session name is valid
+                            foreach (char c in session)
+                            {
+                                if (!allowed.Contains(c + ""))
+                                {
+                                    response = EJoinResponse.FailedInvalidSession;
+                                    break;
+                                }
+                            }
+                            if (response == EJoinResponse.Pending)
+                            {
+                                //Check if the player name is valid
+                                foreach (char c in player)
+                                {
+                                    if (!allowed.Contains(c + ""))
+                                    {
+                                        response = EJoinResponse.FailedInvalidName;
+                                        break;
+                                    }
+                                }
+                                //Check if a player with that name is already connected
+                                if (Sessions.ContainsKey(session) && Sessions[session].Players.Contains(player))
+                                    response = EJoinResponse.FailedInvalidName;
+                            }
+                            //Check if the session is full
+                            if (response == EJoinResponse.Pending)
+                                if (Sessions.ContainsKey(session))
+                                    if (Sessions[session].Locked)
+                                        response = EJoinResponse.FailedLocked;
+                            if (response == EJoinResponse.Pending)
+                            {
+                                //At this point we passed all checks
+                                //Now we will either create or join the session
+                                //depending if the session is already in the list or not
+                                if (Sessions.ContainsKey(session))
+                                    response = EJoinResponse.Succeeded;
+                                else
+                                    response = EJoinResponse.SucceededHost;
+                            }
+                            if (response == EJoinResponse.SucceededHost)
+                            {
+                                //Create the session if we need to host it
+                                Sessions.Add(session, new Session()
+                                {
+                                    Host = player, //We are the host
+                                    Players = new List<string>() { player }, //We are the only connected player
+                                    Locked = false, //Session isn't full
+                                    NextHosts = new Queue<string>(), //No backup hosts are connected yet
+                                });
+                            }
+                            else if (response == EJoinResponse.Succeeded)
+                            {
+                                //If the session already exists, we add our player to the list
+                                Sessions[session].Players.Add(player);
+                                Sessions[session].NextHosts.Enqueue(player);
+                                //Lock the session if the maximum player count was reached
+                                if (Sessions[session].Players.Count >= 5)
+                                    Sessions[session].Locked = true;
+                            }
+                            if (response == EJoinResponse.Succeeded || response == EJoinResponse.SucceededHost)
+                            {
+                                //Send a successful join response on success
+                                //It contains the host, session and connected players
+                                Console.WriteLine("Success " + response.ToString());
+                                Packet.Send(new PacketJoinResponse(session, Sessions[session].Host, Sessions[session].Players, response), sender);
+                                //If our client is pending (which will most likely be the case)
+                                //we assign the received playername and session to it
+                                if (!sender.DoesPlayerExist())
+                                {
+                                    sender.AssignData(player, session);
+                                    Console.WriteLine("Assigned Data: " + player + ", " + session);
+                                }
+                                //Broadcast our joining to all connected players so that they can add you locally
+                                //This isn't needed if we host the session, as no other players are connected yet
+                                if (response == EJoinResponse.Succeeded)
+                                    Broadcast(new PacketNewPlayer(player), sender, "Join Sync");
+                            }
+                            else
+                            {
+                                //Send a fail response if there were any issues
+                                Console.WriteLine("Fail " + response.ToString());
+                                Packet.Send(new PacketJoinResponse(session, "INVALID", new List<string>(), response), sender);
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a client from the connected list when it disconnected
+        /// </summary>
+        /// <param name="sender">Client to remove</param>
+        private void Worker_OnDisconnected(ClientWorker sender)
+        {
+            lock (this)
+            {
+                sender.OnDisconnected -= Worker_OnDisconnected;
+                sender.OnPacketReceived -= Worker_OnPacketReceived;
+                Clients.Remove(sender);
+                sender.Dispose();
             }
         }
     }
@@ -148,6 +299,7 @@ namespace BSR_Server
     {
         private static void Main()
         {
+            //Start the server on an unused port
             Server s = new Server(19123);
             s.Start();
         }

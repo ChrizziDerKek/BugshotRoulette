@@ -16,8 +16,8 @@
         <Grid Name="Login" Visibility="Visible">
             <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
             <StackPanel Orientation="Vertical" Margin="250,450,250,0">
-                <TextBlock Text="Server IP:" HorizontalAlignment="Center" Foreground="White"/>
-                <TextBox MaxLength="15" Background="Black" Foreground="White" Name="HostIP" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
+                <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBox MaxLength="15" Background="Black" Foreground="White" Name="Lobby" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
                 <TextBlock Text="Username:" HorizontalAlignment="Center" Foreground="White"/>
                 <TextBox MaxLength="20" Background="Black" Foreground="White" Name="Username" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
