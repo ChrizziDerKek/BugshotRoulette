@@ -15,14 +15,35 @@
         </Grid>
         <Grid Name="Login" Visibility="Visible">
             <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
-            <StackPanel Orientation="Vertical" Margin="250,450,250,0">
+            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionStart" Visibility="Hidden">
                 <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
-                <TextBox MaxLength="15" Background="Black" Foreground="White" Name="Lobby" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
+                <TextBox Background="Black" Foreground="White" Name="Lobby" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" IsReadOnly="True" HorizontalContentAlignment="Center" PreviewMouseDown="TextBox_PreviewMouseDown"/>
                 <TextBlock Text="Username:" HorizontalAlignment="Center" Foreground="White"/>
-                <TextBox MaxLength="20" Background="Black" Foreground="White" Name="Username" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200"/>
+                <TextBox MaxLength="20" Background="Black" Foreground="White" Name="HostUsername" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
-                <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="Connect" Click="Button_Click"/>
-                <Button Background="Black" Foreground="White" Name="Start" HorizontalAlignment="Center" VerticalAlignment="Center" Width="200" Height="25" Content="" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="GameSettings" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Game Settings" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="SessionHost" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Host Session" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="StartGame" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="" Click="Button_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionJoin" Visibility="Visible">
+                <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBox Background="Black" Foreground="White" Name="LobbyJoin" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
+                <TextBlock Text="Username:" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBox MaxLength="20" Background="Black" Foreground="White" Name="Username" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
+                <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
+                <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Connect" Click="Button_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSettings" Visibility="Visible">
+
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MainMenu" Visibility="Hidden">
+                <TextBlock Visibility="Hidden"/>
+                <TextBox Visibility="Hidden"/>
+                <TextBlock Visibility="Hidden"/>
+                <TextBox Visibility="Hidden"/>
+                <TextBlock Visibility="Hidden"/>
+                <Button Background="Black" Foreground="White" Name="SessionJoin" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Join Session" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="SessionStart" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Create Session" Click="Button_Click"/>
             </StackPanel>
             <Grid>
                 <Grid.RowDefinitions>

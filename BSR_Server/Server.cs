@@ -186,6 +186,7 @@ namespace Server
                             Console.WriteLine(packet.ToString());
                             string session = packet.GetSession();
                             string player = packet.GetPlayer();
+                            bool hosting = packet.IsHosting();
                             //Only these chars are allowed for players and sessions
                             string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-%&/[]()?!.,#";
                             //Create a response that indicates if the join will succeed
@@ -199,6 +200,8 @@ namespace Server
                                     break;
                                 }
                             }
+                            if (!hosting && !Sessions.ContainsKey(session))
+                                response = EJoinResponse.FailedInvalidSession;
                             if (response == EJoinResponse.Pending)
                             {
                                 //Check if the player name is valid
@@ -300,7 +303,7 @@ namespace Server
         private static void Main()
         {
             //Start the server on an unused port
-            Server s = new Server(19123);
+            Server s = new Server(19121);
             s.Start();
         }
     }

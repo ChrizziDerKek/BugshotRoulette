@@ -187,26 +187,31 @@ class PacketJoinRequest : Packet
 {
     private string Session; //Session to join
     private string Player; //Player name
+    private bool JoinExistingSession; //False when hosting a session
 
     public override EPacket Id => EPacket.JoinRequest;
 
     public PacketJoinRequest(List<byte> data) => Receive(data);
 
-    public PacketJoinRequest(string session, string player)
+    public PacketJoinRequest(string session, string player, bool joinExistingSession)
     {
         Session = session;
         Player = player;
+        JoinExistingSession = joinExistingSession;
     }
 
     protected override void Serialize(ISync sync)
     {
         sync.SerializeStr(ref Session);
         sync.SerializeStr(ref Player);
+        sync.SerializeBool(ref JoinExistingSession);
     }
 
     public string GetSession() => Session;
 
     public string GetPlayer() => Player;
+
+    public bool IsHosting() => !JoinExistingSession;
 
     public override string ToString() => string.Format("{0}: Session {1}, Player {2}", Id.ToString(), Session, Player);
 }

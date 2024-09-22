@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Net.Sockets;
 using System.Windows.Shapes;
+using System.Windows.Input;
 
 namespace BSR_Client
 {
@@ -22,6 +23,7 @@ namespace BSR_Client
             HealthBars = new ProgressBar[] { Health1, Health2, Health3, Health4, Health5 };
             ItemDisplays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
             PlayerDisplays = new Button[] { Player1, Player2, Player3, Player4, Player5 };
+            SetMenuState(EMenuState.Startup);
         }
 
         private void Client_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
@@ -45,7 +47,10 @@ namespace BSR_Client
                             }
                             else
                             {
-                                Fatal("Failed to join session\nreason: " + packet.GetResponse().ToString());
+                                Fatal("Failed to join session\nreason: " + packet.GetResponse().ToString(), false);
+                                SessionHost.Content = "Host Session";
+                                Connect.Content = "Connect";
+                                GameSettings.Content = "Game Settings";
                                 return;
                             }
                         }
@@ -77,21 +82,32 @@ namespace BSR_Client
             string action = (sender as Button).Name;
             switch (action)
             {
+                case "SessionJoin":
+                    SetMenuState(EMenuState.Join);
+                    break;
+                case "SessionStart":
+                    SetMenuState(EMenuState.Host);
+                    Lobby.Text = Guid.NewGuid().ToString();
+                    break;
+                case "GameSettings":
+                    if ((sender as Button).Content.ToString() == "")
+                        return;
+                    SetMenuState(EMenuState.Settings);
+                    break;
+                case "CopySession":
+                    if ((sender as Button).Content.ToString() == "")
+                        return;
+                    Clipboard.SetText(Lobby.Text);
+                    break;
+                case "SessionHost":
+                    if ((sender as Button).Content.ToString() == "")
+                        return;
+                    AttemptConnect(true);
+                    break;
                 case "Connect":
-                    try
-                    {
-                        Sync = new ClientWorker("127.0.0.1", 19121);
-                        Sync.OnPacketReceived += Client_OnPacketReceived;
-                        Sync.Start();
-                        You = Username.Text;
-                        Session = Lobby.Text;
-                        Packet.Send(new PacketJoinRequest(Session, You), Sync);
-                        //TODO: disable actions
-                    }
-                    catch
-                    {
-                        Fatal("Failed to connect to server");
-                    }
+                    if ((sender as Button).Content.ToString() == "")
+                        return;
+                    AttemptConnect(false);
                     break;
                 case "Restart":
 
@@ -134,6 +150,13 @@ namespace BSR_Client
         {
             if (Log.SelectedIndex != -1)
                 Log.SelectedIndex = -1;
+        }
+
+        private void TextBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+                return;
+            Clipboard.SetText(Lobby.Text);
         }
     }
 }

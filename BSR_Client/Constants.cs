@@ -36,6 +36,16 @@ namespace BSR_Client
         Count,
     }
 
+    public enum EMenuState
+    {
+        Startup,
+        Join,
+        Host,
+        Settings,
+        Gamestart,
+        Gameover,
+    }
+
     public partial class MainWindow
     {
         private Rectangle[] BulletDisplays = null;

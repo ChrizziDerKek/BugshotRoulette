@@ -7,15 +7,17 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
 using System.Windows.Shapes;
+using System.Windows.Documents;
 
 namespace BSR_Client
 {
     public partial class MainWindow
     {
-        public void Fatal(string str)
+        public void Fatal(string str, bool exit = true)
         {
             MessageBox.Show(str, "Error");
-            Close();
+            if (exit)
+                Close();
         }
 
         public void Announce(string str)
@@ -127,6 +129,89 @@ namespace BSR_Client
                     b.Fill = Brushes.Transparent;
                     break;
                 }
+            }
+        }
+
+        public void AttemptConnect(bool host)
+        {
+            string username = host ? HostUsername.Text : Username.Text;
+            string session = host ? Lobby.Text : LobbyJoin.Text;
+            try
+            {
+                Sync = new ClientWorker("127.0.0.1", 19121);
+                Sync.OnPacketReceived += Client_OnPacketReceived;
+                Sync.Start();
+                You = username;
+                Session = session;
+                Packet.Send(new PacketJoinRequest(Session, You, !host), Sync);
+                GameSettings.Content = "";
+                SessionHost.Content = "";
+                Connect.Content = "";
+            }
+            catch
+            {
+                Fatal("Failed to connect to server");
+            }
+        }
+
+        public void SetMenuState(EMenuState state)
+        {
+            switch (state)
+            {
+                case EMenuState.Startup:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Visible;
+                    Login.Visibility = Visibility.Visible;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    break;
+                case EMenuState.Join:
+                    MenuSessionJoin.Visibility = Visibility.Visible;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Visible;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    break;
+                case EMenuState.Host:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Visible;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Visible;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    break;
+                case EMenuState.Settings:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Visible;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Visible;
+                    break;
+                case EMenuState.Gamestart:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Hidden;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Visible;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    break;
+                case EMenuState.Gameover:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Hidden;
+                    Gameover.Visibility = Visibility.Visible;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    break;
             }
         }
     }
