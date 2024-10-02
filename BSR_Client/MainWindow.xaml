@@ -48,7 +48,7 @@
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
                 <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Connect" Click="Button_Click"/>
             </StackPanel>
-            <Grid Name="MenuSettings" Visibility="Visible" Margin="200,0,200,0">
+            <Grid Name="MenuSettings" Visibility="Hidden" Margin="200,0,200,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="4*"/>
@@ -178,7 +178,7 @@
                 <ListView Name="Playerlist" Margin="5" SelectionChanged="ListView_SelectionChanged" TextBlock.Foreground="White" Background="Transparent" Visibility="Hidden"/>
             </Grid>
         </Grid>
-        <Grid Name="Game" Visibility="Hidden" Background="Black">
+        <Grid Name="Game" Visibility="Visible" Background="Black">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>

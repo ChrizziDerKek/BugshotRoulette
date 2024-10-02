@@ -89,6 +89,12 @@ namespace BSR_Client
                                 SwitchToHostMenu();
                         }
                         break;
+                    case EPacket.StartRound:
+                        {
+                            PacketStartRound packet = new PacketStartRound(data);
+                            
+                        }
+                        break;
                 }
             });
         }
