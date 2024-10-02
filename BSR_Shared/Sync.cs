@@ -15,9 +15,11 @@ public enum EPacket
     NewPlayer,
     Disconnected,
     RemoveLocalPlayer,
+    UpdateSettings,
+    StartGame,
 }
 
-enum EJoinResponse
+public enum EJoinResponse
 {
     Pending,
     Succeeded,
@@ -25,6 +27,167 @@ enum EJoinResponse
     FailedLocked,
     FailedInvalidName,
     FailedInvalidSession,
+}
+
+public enum EBullet
+{
+    Undefined,
+    Blank,
+    Live,
+}
+
+public enum EItem
+{
+    Nothing,
+    Handcuffs,
+    Cigarettes,
+    Saw,
+    Magnifying,
+    Beer,
+    Inverter,
+    Medicine,
+    Phone,
+    Adrenaline,
+    Magazine,
+    Gunpowder,
+    Bullet,
+    Trashbin,
+    Heroine,
+    Katana,
+    Swapper,
+    Hat,
+    Count,
+}
+
+public class SettingsData
+{
+    public bool BotDealer;
+    public int MaxPlayers;
+    public int MinHealth;
+    public int MaxHealth;
+    public int MinItems;
+    public int MaxItems;
+    public int MinBullets;
+    public int MaxBullets;
+    public bool DunceDealer;
+    public bool OriginalItemsOnly;
+    public bool NoItems;
+    public Dictionary<EItem, bool> EnabledItems;
+
+    public SettingsData(bool botDealer, int maxPlayers, int minHealth, int maxHealth, int minItems, int maxItems, int minBullets, int maxBullets, bool dunceDealer, bool originalItemsOnly, bool noItems, Dictionary<EItem, bool> enabledItems)
+    {
+        BotDealer = botDealer;
+        MaxPlayers = maxPlayers;
+        MinHealth = minHealth;
+        MaxHealth = maxHealth;
+        MinItems = minItems;
+        MaxItems = maxItems;
+        MinBullets = minBullets;
+        MaxBullets = maxBullets;
+        DunceDealer = dunceDealer;
+        OriginalItemsOnly = originalItemsOnly;
+        NoItems = noItems;
+        EnabledItems = enabledItems;
+    }
+
+    public SettingsData()
+    {
+        BotDealer = false;
+        MaxPlayers = 5;
+        MinHealth = 10;
+        MaxHealth = 15;
+        MinItems = 1;
+        MaxItems = 4;
+        MinBullets = 2;
+        MaxBullets = 8;
+        DunceDealer = false;
+        OriginalItemsOnly = false;
+        NoItems = false;
+        EnabledItems = new Dictionary<EItem, bool>();
+        for (EItem i = EItem.Nothing + 1; i != EItem.Count; i++)
+            EnabledItems.Add(i, i != EItem.Bullet);
+    }
+}
+
+class PacketStartGame : Packet
+{
+    public override EPacket Id => EPacket.StartGame;
+
+    public PacketStartGame(List<byte> data) => Receive(data);
+
+    public PacketStartGame()
+    {
+
+    }
+
+    protected override void Serialize(ISync sync)
+    {
+
+    }
+
+    public override string ToString() => string.Format("{0}", Id.ToString());
+}
+
+class PacketUpdateSettings : Packet
+{
+    private SettingsData Data;
+
+    public override EPacket Id => EPacket.UpdateSettings;
+
+    public PacketUpdateSettings(List<byte> data) => Receive(data);
+
+    public PacketUpdateSettings(SettingsData data)
+    {
+        Data = data;
+    }
+
+    public SettingsData GetSettings() => Data;
+
+    protected override void Serialize(ISync sync)
+    {
+        bool received = Data == null;
+        if (received)
+            Data = new SettingsData();
+        sync.SerializeBool(ref Data.BotDealer);
+        sync.SerializeInt(ref Data.MaxPlayers);
+        sync.SerializeInt(ref Data.MinHealth);
+        sync.SerializeInt(ref Data.MaxHealth);
+        sync.SerializeInt(ref Data.MinItems);
+        sync.SerializeInt(ref Data.MaxItems);
+        sync.SerializeInt(ref Data.MinBullets);
+        sync.SerializeInt(ref Data.MaxBullets);
+        sync.SerializeBool(ref Data.DunceDealer);
+        sync.SerializeBool(ref Data.OriginalItemsOnly);
+        sync.SerializeBool(ref Data.NoItems);
+        if (received)
+        {
+            int count = 0;
+            sync.SerializeInt(ref count);
+            Data.EnabledItems = new Dictionary<EItem, bool>();
+            for (int i = 0; i < count; i++)
+            {
+                int item = 0;
+                bool enabled = false;
+                sync.SerializeInt(ref item);
+                sync.SerializeBool(ref enabled);
+                Data.EnabledItems.Add((EItem)item, enabled);
+            }
+        }
+        else
+        {
+            int count = Data.EnabledItems.Count;
+            sync.SerializeInt(ref count);
+            foreach (KeyValuePair<EItem, bool> i in Data.EnabledItems)
+            {
+                int item = (int)i.Key;
+                bool enabled = i.Value;
+                sync.SerializeInt(ref item);
+                sync.SerializeBool(ref enabled);
+            }
+        }
+    }
+
+    public override string ToString() => string.Format("{0}: ...", Id.ToString());
 }
 
 /// <summary>
