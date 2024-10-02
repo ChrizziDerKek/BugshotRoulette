@@ -6,6 +6,8 @@ using System.Net.Sockets;
 using System.Net;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Linq;
 
 #pragma warning disable IDE0058
 
@@ -17,6 +19,20 @@ namespace Server
         public List<string> Players; //All connected players
         public Queue<string> NextHosts; //Backup hosts that will become host when the current one leaves
         public bool Locked; //True if the session is full
+        public SettingsData Settings;
+        public int CurrentPlayer;
+        public Random RNG;
+
+        public void SetFirstPlayer()
+        {
+            CurrentPlayer = RNG.Next(0, Players.Count);
+        }
+
+        public int SwitchPlayer()
+        {
+            CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
+            return CurrentPlayer;
+        }
     }
 
     public class Server
@@ -119,6 +135,14 @@ namespace Server
             return Clients.Count;
         }
 
+        private bool IsHost(ClientWorker sender)
+        {
+            if (!sender.DoesPlayerExist())
+                return false;
+            Session session = Sessions[sender.GetSession()];
+            return session.Host == sender.GetPlayer();
+        }
+
         /// <summary>
         /// Handles a received packet
         /// </summary>
@@ -131,6 +155,34 @@ namespace Server
             {
                 switch (id)
                 {
+                    case EPacket.StartGame:
+                        {
+                            PacketStartGame packet = new PacketStartGame();
+                            Console.WriteLine(packet.ToString());
+                            if (!IsHost(sender))
+                            {
+                                Console.WriteLine("Rejected because player isn't the host");
+                                return;
+                            }
+                            Session session = Sessions[sender.GetSession()];
+                            session.Locked = true;
+                            session.SetFirstPlayer();
+                            Broadcast(packet, sender, "Game Start");
+                        }
+                        break;
+                    case EPacket.UpdateSettings:
+                        {
+                            PacketUpdateSettings packet = new PacketUpdateSettings(data);
+                            Console.WriteLine(packet.ToString());
+                            Session session = Sessions[sender.GetSession()];
+                            if (!IsHost(sender))
+                            {
+                                Console.WriteLine("Rejected because player isn't the host");
+                                return;
+                            }
+                            session.Settings = packet.GetSettings();
+                        }
+                        break;
                     case EPacket.Disconnected:
                         {
                             //A client disconnected from the server
@@ -147,28 +199,26 @@ namespace Server
                                 Console.WriteLine("Removed " + player + " from Session " + sender.GetSession());
                                 bool didMigrate = false;
                                 bool destroyed = false;
-                                if (session.Host == player)
+                                //If no hosts are left, the session is empty and we can destroy it
+                                if (session.NextHosts.Count == 0)
+                                {
+                                    Console.WriteLine("Destroying Session because no Players are left");
+                                    Sessions.Remove(sender.GetSession());
+                                    destroyed = true;
+                                }
+                                if (!destroyed && !IsHost(sender))
+                                    session.NextHosts = new Queue<string>(session.NextHosts.Where(h => h != player));
+                                if (!destroyed && IsHost(sender))
                                 {
                                     //We need to migrate a new host if the host left
                                     do
                                     {
                                         //Get the next host in the queue
                                         session.Host = session.NextHosts.Dequeue();
-                                        //If no hosts are left, the session is empty and we can destroy it
-                                        if (session.NextHosts.Count == 0)
-                                        {
-                                            Console.WriteLine("Destroying Session because no Players are left");
-                                            Sessions.Remove(sender.GetSession());
-                                            destroyed = true;
-                                            break;
-                                        }
                                     }
                                     while (!session.Players.Contains(session.Host));
-                                    if (!destroyed)
-                                    {
-                                        Console.WriteLine("New Host: " + session.Host);
-                                        didMigrate = true;
-                                    }
+                                    Console.WriteLine("New Host: " + session.Host);
+                                    didMigrate = true;
                                 }
                                 //If the session wasn't destroyed, we tell other clients to remove our player locally
                                 if (!destroyed)
@@ -241,6 +291,9 @@ namespace Server
                                     Players = new List<string>() { player }, //We are the only connected player
                                     Locked = false, //Session isn't full
                                     NextHosts = new Queue<string>(), //No backup hosts are connected yet
+                                    Settings = new SettingsData(),
+                                    CurrentPlayer = 0,
+                                    RNG = new Random(),
                                 });
                             }
                             else if (response == EJoinResponse.Succeeded)
@@ -249,7 +302,7 @@ namespace Server
                                 Sessions[session].Players.Add(player);
                                 Sessions[session].NextHosts.Enqueue(player);
                                 //Lock the session if the maximum player count was reached
-                                if (Sessions[session].Players.Count >= 5)
+                                if (Sessions[session].Players.Count >= Sessions[session].Settings.MaxPlayers)
                                     Sessions[session].Locked = true;
                             }
                             if (response == EJoinResponse.Succeeded || response == EJoinResponse.SucceededHost)
