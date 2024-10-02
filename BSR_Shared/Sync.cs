@@ -17,6 +17,7 @@ public enum EPacket
     RemoveLocalPlayer,
     UpdateSettings,
     StartGame,
+    StartRound,
 }
 
 public enum EJoinResponse
@@ -107,6 +108,69 @@ public class SettingsData
         for (EItem i = EItem.Nothing + 1; i != EItem.Count; i++)
             EnabledItems.Add(i, i != EItem.Bullet);
     }
+}
+
+class PacketStartRound : Packet
+{
+    private List<EBullet> Bullets;
+    private EItem[] Items;
+
+    public override EPacket Id => EPacket.StartRound;
+
+    public PacketStartRound(List<byte> data) => Receive(data);
+
+    public PacketStartRound(List<EBullet> bullets, EItem[] items)
+    {
+        Bullets = bullets;
+        Items = items;
+    }
+
+    public List<EBullet> GetBullets() => Bullets;
+
+    public EItem[] GetItems() => Items;
+
+    protected override void Serialize(ISync sync)
+    {
+        if (Bullets == null)
+        {
+            Bullets = new List<EBullet>();
+            int count = 0;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                int bullet = 0;
+                sync.SerializeInt(ref bullet);
+                Bullets.Add((EBullet)bullet);
+            }
+            sync.SerializeInt(ref count);
+            Items = new EItem[count];
+            for (int i = 0; i < count; i++)
+            {
+                int item = 0;
+                sync.SerializeInt(ref item);
+                Items[i] = (EItem)item;
+            }
+        }
+        else
+        {
+            int count = Bullets.Count;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                int bullet = (int)Bullets[i];
+                sync.SerializeInt(ref bullet);
+            }
+            count = Items.Length;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                int item = (int)Items[i];
+                sync.SerializeInt(ref item);
+            }
+        }
+    }
+
+    public override string ToString() => string.Format("{0} ...", Id.ToString());
 }
 
 class PacketStartGame : Packet
