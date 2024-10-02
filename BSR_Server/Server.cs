@@ -8,30 +8,230 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Linq;
+using System.Data;
 
+#pragma warning disable IDE0044
 #pragma warning disable IDE0058
 
 namespace Server
 {
     public class Session
     {
-        public string Host; //Player who created the session and can start the game
-        public List<string> Players; //All connected players
-        public Queue<string> NextHosts; //Backup hosts that will become host when the current one leaves
-        public bool Locked; //True if the session is full
-        public SettingsData Settings;
-        public int CurrentPlayer;
-        public Random RNG;
+        private string Host; //Player who created the session and can start the game
+        private List<string> Players; //All connected players
+        private Queue<string> NextHosts; //Backup hosts that will become host when the current one leaves
+        private bool Locked; //True if the session is full
+        private SettingsData Settings;
+        private int CurrentPlayer;
+        private Random RNG;
+        private Dictionary<string, EItem[]> PlayerItems;
+        private List<EBullet> ActualBullets;
+        private List<EBullet> DisplayedBullets;
+        private string Code;
 
-        public void SetFirstPlayer()
+        private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
-            CurrentPlayer = RNG.Next(0, Players.Count);
+            { EItem.Nothing, 0 },
+            { EItem.Handcuffs, 2 },
+            { EItem.Cigarettes, 3 },
+            { EItem.Saw, 2 },
+            { EItem.Magnifying, 3 },
+            { EItem.Beer, 3 },
+            { EItem.Inverter, 2 },
+            { EItem.Medicine, 3 },
+            { EItem.Phone, 2 },
+            { EItem.Adrenaline, 2 },
+            { EItem.Magazine, 2 },
+            { EItem.Gunpowder, 2 },
+            { EItem.Bullet, 1 },
+            { EItem.Trashbin, 1 },
+            { EItem.Heroine, 1 },
+            { EItem.Katana, 1 },
+            { EItem.Swapper, 1 },
+            { EItem.Hat, 1 },
+            { EItem.Count, 0 },
+        };
+
+        public Session(string host, string code)
+        {
+            Host = host;
+            Players = new List<string>() { host };
+            Locked = false;
+            NextHosts = new Queue<string>();
+            Settings = new SettingsData();
+            CurrentPlayer = 0;
+            RNG = new Random();
+            PlayerItems = new Dictionary<string, EItem[]>();
+            ActualBullets = new List<EBullet>();
+            DisplayedBullets = new List<EBullet>();
+            Code = code;
         }
+
+        public string GetSession() => Code;
+
+        public void MigrateHost() => Host = NextHosts.Dequeue();
+
+        public bool IsPlayerConnected(string player) => Players.Contains(player);
+
+        public void AddPlayer(string player)
+        {
+            Players.Add(player);
+            NextHosts.Enqueue(player);
+            if (Players.Count >= Settings.MaxPlayers)
+                Locked = true;
+        }
+
+        public void RemovePlayer(string player)
+        {
+            Players.Remove(player);
+            if (Players.Count < Settings.MaxPlayers)
+                Locked = false;
+        }
+
+        public void FixHostQueue(string player) => NextHosts = new Queue<string>(NextHosts.Where(h => h != player));
+
+        public string GetHost() => Host;
+
+        public List<string> GetPlayers() => Players;
+
+        public int GetPlayerCount() => Players.Count;
+
+        public bool ShouldBeDestroyed() => NextHosts.Count == 0;
+
+        public void Lock() => Locked = true;
+
+        public bool IsLocked() => Locked;
+
+        public int GetMaxPlayers() => Settings.MaxPlayers;
+
+        public void UpdateSettings(SettingsData s) => Settings = s;
+
+        public void ResetSettings() => Settings = new SettingsData();
+
+        public void SetFirstPlayer() => CurrentPlayer = RNG.Next(0, Players.Count);
 
         public int SwitchPlayer()
         {
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
             return CurrentPlayer;
+        }
+
+        public void GenerateBullets()
+        {
+            int min = Settings.MinBullets;
+            int max = Settings.MaxBullets;
+            int even = RNG.Next(0, 100);
+            int ntotal = RNG.Next(min, max + 1);
+            if (even > 40 && ntotal % 2 != 0 && ntotal < max)
+                ntotal++;
+            int nblank = 0;
+            switch (ntotal)
+            {
+                case 2:
+                    nblank = 1;
+                    break;
+                case 3:
+                case 4:
+                    nblank = RNG.Next(1, ntotal);
+                    break;
+                case 5:
+                case 6:
+                    nblank = RNG.Next(2, 4);
+                    break;
+                case 7:
+                    nblank = RNG.Next(3, 5);
+                    break;
+                case 8:
+                    nblank = RNG.Next(3, 6);
+                    break;
+            }
+            int nlive = ntotal - nblank;
+            for (int i = 0; i < nblank; i++)
+            {
+                ActualBullets.Add(EBullet.Blank);
+                DisplayedBullets.Add(EBullet.Blank);
+            }
+            for (int i = 0; i < nlive; i++)
+            {
+                ActualBullets.Add(EBullet.Live);
+                DisplayedBullets.Add(EBullet.Live);
+            }
+            ShuffleBullets();
+        }
+
+        public void GenerateItems(string player, bool bot)
+        {
+            if (Settings.NoItems)
+                return;
+            int count = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
+            for (int i = 0; i < count; i++)
+            {
+                int start = (int)EItem.Nothing + 1;
+                int end = (int)EItem.Count;
+                if (Settings.OriginalItemsOnly || bot)
+                    end = (int)EItem.Adrenaline + 1;
+                int attempts = 0;
+                EItem item;
+                do
+                {
+                    if (attempts++ > 100)
+                    {
+                        item = EItem.Nothing;
+                        break;
+                    }
+                    item = (EItem)RNG.Next(start, end);
+                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
+                        item = (EItem)RNG.Next(start, end);
+                }
+                while (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(player, item) >= limit);
+                if (item == EItem.Nothing)
+                    break;
+                if (!PlayerItems.ContainsKey(player))
+                {
+                    PlayerItems.Add(player, new EItem[8]);
+                    for (int j = 0; j < 8; j++)
+                        PlayerItems[player][j] = EItem.Nothing;
+                }
+                for (int j = 0; j < 8; j++)
+                {
+                    if (PlayerItems[player][j] == EItem.Nothing)
+                    {
+                        PlayerItems[player][j] = item;
+                        break;
+                    }
+                }
+            }
+        }
+
+        public List<EBullet> GetBullets(bool display) => display ? DisplayedBullets : ActualBullets;
+
+        public EItem[] GetItems(string player) => PlayerItems[player];
+
+        private int GetItemCount(string player, EItem item)
+        {
+            if (!PlayerItems.TryGetValue(player, out EItem[] items))
+                return 0;
+            int count = 0;
+            foreach (EItem it in items)
+                if (it == item)
+                    count++;
+            return count;
+        }
+
+        private void ShuffleBullets()
+        {
+            int n = ActualBullets.Count;
+            while (n > 1)
+            {
+                int r = RNG.Next(n--);
+                (ActualBullets[r], ActualBullets[n]) = (ActualBullets[n], ActualBullets[r]);
+            }
+            n = DisplayedBullets.Count;
+            while (n > 1)
+            {
+                int r = RNG.Next(n--);
+                (DisplayedBullets[r], DisplayedBullets[n]) = (DisplayedBullets[n], DisplayedBullets[r]);
+            }
         }
     }
 
@@ -99,6 +299,54 @@ namespace Server
             return w.GetSession() == me.GetSession();
         }
 
+        private int Broadcast(Packet pack, Session ses, string debugname)
+        {
+            int n = 0;
+            for (int i = 0; i < Clients.Count; i++)
+            {
+                ClientWorker client = Clients[i];
+                try
+                {
+                    if (client.GetSession() != ses.GetSession())
+                        continue;
+                    Packet.Send(pack, client);
+                    n++;
+                    if (!string.IsNullOrEmpty(debugname))
+                        Console.WriteLine("Sent {0} to {1}", debugname, client.GetPlayer());
+                }
+                catch
+                {
+                    Clients.RemoveAt(i--);
+                    client.Dispose();
+                }
+            }
+            return n;
+        }
+
+        private int Broadcast(Func<ClientWorker, Packet> pack, Session ses, string debugname)
+        {
+            int n = 0;
+            for (int i = 0; i < Clients.Count; i++)
+            {
+                ClientWorker client = Clients[i];
+                try
+                {
+                    if (client.GetSession() != ses.GetSession())
+                        continue;
+                    Packet.Send(pack(client), client);
+                    n++;
+                    if (!string.IsNullOrEmpty(debugname))
+                        Console.WriteLine("Sent {0} to {1}", debugname, client.GetPlayer());
+                }
+                catch
+                {
+                    Clients.RemoveAt(i--);
+                    client.Dispose();
+                }
+            }
+            return n;
+        }
+
         /// <summary>
         /// Sends a packet to all clients that are connected to your session
         /// </summary>
@@ -108,6 +356,7 @@ namespace Server
         /// <returns>Number of clients that received the packet</returns>
         private int Broadcast(Packet pack, ClientWorker cli, string debugname)
         {
+            int n = 0;
             //Loop through all connected clients
             for (int i = 0; i < Clients.Count; i++)
             {
@@ -122,6 +371,7 @@ namespace Server
                         continue;
                     //Send the packet to the current client
                     Packet.Send(pack, client);
+                    n++;
                     if (!string.IsNullOrEmpty(debugname))
                         Console.WriteLine("Sent {0} to {1}", debugname, client.GetPlayer());
                 }
@@ -132,7 +382,7 @@ namespace Server
                     client.Dispose();
                 }
             }
-            return Clients.Count;
+            return n;
         }
 
         private bool IsHost(ClientWorker sender)
@@ -140,7 +390,7 @@ namespace Server
             if (!sender.DoesPlayerExist())
                 return false;
             Session session = Sessions[sender.GetSession()];
-            return session.Host == sender.GetPlayer();
+            return session.GetHost() == sender.GetPlayer();
         }
 
         /// <summary>
@@ -165,9 +415,13 @@ namespace Server
                                 return;
                             }
                             Session session = Sessions[sender.GetSession()];
-                            session.Locked = true;
+                            session.Lock();
                             session.SetFirstPlayer();
                             Broadcast(packet, sender, "Game Start");
+                            session.GenerateBullets();
+                            foreach (string player in session.GetPlayers())
+                                session.GenerateItems(player, false);
+                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer())), session, "Round Start");
                         }
                         break;
                     case EPacket.UpdateSettings:
@@ -180,7 +434,7 @@ namespace Server
                                 Console.WriteLine("Rejected because player isn't the host");
                                 return;
                             }
-                            session.Settings = packet.GetSettings();
+                            session.UpdateSettings(packet.GetSettings());
                         }
                         break;
                     case EPacket.Disconnected:
@@ -195,34 +449,36 @@ namespace Server
                                 Session session = Sessions[sender.GetSession()];
                                 string player = sender.GetPlayer();
                                 //Remove the client from its session
-                                session.Players.Remove(player);
+                                session.RemovePlayer(player);
                                 Console.WriteLine("Removed " + player + " from Session " + sender.GetSession());
                                 bool didMigrate = false;
                                 bool destroyed = false;
                                 //If no hosts are left, the session is empty and we can destroy it
-                                if (session.NextHosts.Count == 0)
+                                if (session.ShouldBeDestroyed())
                                 {
                                     Console.WriteLine("Destroying Session because no Players are left");
                                     Sessions.Remove(sender.GetSession());
                                     destroyed = true;
                                 }
                                 if (!destroyed && !IsHost(sender))
-                                    session.NextHosts = new Queue<string>(session.NextHosts.Where(h => h != player));
+                                    session.FixHostQueue(player);
                                 if (!destroyed && IsHost(sender))
                                 {
                                     //We need to migrate a new host if the host left
                                     do
                                     {
                                         //Get the next host in the queue
-                                        session.Host = session.NextHosts.Dequeue();
+                                        session.MigrateHost();
                                     }
-                                    while (!session.Players.Contains(session.Host));
-                                    Console.WriteLine("New Host: " + session.Host);
+                                    while (!session.IsPlayerConnected(session.GetHost()));
+                                    Console.WriteLine("New Host: " + session.GetHost());
                                     didMigrate = true;
                                 }
+                                if (didMigrate)
+                                    session.ResetSettings();
                                 //If the session wasn't destroyed, we tell other clients to remove our player locally
                                 if (!destroyed)
-                                    Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.Host : null), sender, "Local Removal");
+                                    Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.GetHost() : null), sender, "Local Removal");
                             }
                             else Console.WriteLine("Disconnected pending Player");
                             //Remove the client from the connected list
@@ -264,13 +520,13 @@ namespace Server
                                     }
                                 }
                                 //Check if a player with that name is already connected
-                                if (Sessions.ContainsKey(session) && Sessions[session].Players.Contains(player))
+                                if (Sessions.ContainsKey(session) && Sessions[session].IsPlayerConnected(player))
                                     response = EJoinResponse.FailedInvalidName;
                             }
                             //Check if the session is full
                             if (response == EJoinResponse.Pending)
                                 if (Sessions.ContainsKey(session))
-                                    if (Sessions[session].Locked)
+                                    if (Sessions[session].IsLocked())
                                         response = EJoinResponse.FailedLocked;
                             if (response == EJoinResponse.Pending)
                             {
@@ -285,32 +541,20 @@ namespace Server
                             if (response == EJoinResponse.SucceededHost)
                             {
                                 //Create the session if we need to host it
-                                Sessions.Add(session, new Session()
-                                {
-                                    Host = player, //We are the host
-                                    Players = new List<string>() { player }, //We are the only connected player
-                                    Locked = false, //Session isn't full
-                                    NextHosts = new Queue<string>(), //No backup hosts are connected yet
-                                    Settings = new SettingsData(),
-                                    CurrentPlayer = 0,
-                                    RNG = new Random(),
-                                });
+                                Sessions.Add(session, new Session(player, session));
                             }
                             else if (response == EJoinResponse.Succeeded)
                             {
                                 //If the session already exists, we add our player to the list
-                                Sessions[session].Players.Add(player);
-                                Sessions[session].NextHosts.Enqueue(player);
-                                //Lock the session if the maximum player count was reached
-                                if (Sessions[session].Players.Count >= Sessions[session].Settings.MaxPlayers)
-                                    Sessions[session].Locked = true;
+                                //and lock the session if the maximum player count was reached
+                                Sessions[session].AddPlayer(player);
                             }
                             if (response == EJoinResponse.Succeeded || response == EJoinResponse.SucceededHost)
                             {
                                 //Send a successful join response on success
                                 //It contains the host, session and connected players
                                 Console.WriteLine("Success " + response.ToString());
-                                Packet.Send(new PacketJoinResponse(session, Sessions[session].Host, Sessions[session].Players, response), sender);
+                                Packet.Send(new PacketJoinResponse(session, Sessions[session].GetHost(), Sessions[session].GetPlayers(), response), sender);
                                 //If our client is pending (which will most likely be the case)
                                 //we assign the received playername and session to it
                                 if (!sender.DoesPlayerExist())
