@@ -4,13 +4,28 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="BSR" Height="650" Width="800" ResizeMode="CanMinimize" Closing="Window_Closing">
+        Title="BSR" Height="650" Width="800" ResizeMode="CanMinimize" Closing="Window_Closing" Background="Black">
+    <Window.Resources>
+        <Style x:Key="StyleGVC" TargetType="{x:Type GridViewColumnHeader}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type GridViewColumnHeader}">
+                        <Border BorderThickness="0,0,0,1" BorderBrush="Black" Background="Transparent">
+                            <TextBlock x:Name="ContentHeader" Text="{TemplateBinding Content}" Padding="5,5,5,0" Width="{TemplateBinding Width}" TextAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Background" Value="Black"/>
+            <Setter Property="TextBlock.Foreground" Value="White"/>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid Name="Gameover" Visibility="Hidden">
             <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
             <StackPanel Orientation="Vertical" Margin="0,500,0,0">
                 <TextBlock Name="Winner" Text="Playername won!" Foreground="White" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <Button Background="Black" Foreground="White" Name="Restart" Content="Play again" Margin="250,25,250,-25" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="RestartGame" Content="Play again" Margin="250,25,250,-25" Click="Button_Click"/>
             </StackPanel>
         </Grid>
         <Grid Name="Login" Visibility="Visible">
@@ -21,11 +36,11 @@
                 <TextBlock Text="Username:" HorizontalAlignment="Center" Foreground="White"/>
                 <TextBox MaxLength="20" Background="Black" Foreground="White" Name="HostUsername" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
-                <Button Background="Black" Foreground="White" Name="GameSettings" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Game Settings" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="GameSettings" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="SessionHost" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Host Session" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="StartGame" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="" Click="Button_Click"/>
             </StackPanel>
-            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionJoin" Visibility="Visible">
+            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionJoin" Visibility="Hidden">
                 <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
                 <TextBox Background="Black" Foreground="White" Name="LobbyJoin" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
                 <TextBlock Text="Username:" HorizontalAlignment="Center" Foreground="White"/>
@@ -33,14 +48,120 @@
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
                 <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Connect" Click="Button_Click"/>
             </StackPanel>
-            <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSettings" Visibility="Visible">
-
-            </StackPanel>
+            <Grid Name="MenuSettings" Visibility="Visible" Margin="200,0,200,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="4*"/>
+                    <RowDefinition Height="11*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Margin="5" Grid.Row="0" Text="Items:" Foreground="White" VerticalAlignment="Bottom"/>
+                <StackPanel Orientation="Vertical" Grid.Row="2" Margin="5">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Bot Dealer:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <CheckBox Name="SettingsBotDealer" IsChecked="False"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Max Players:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMaxPlayers" Minimum="2" Value="5" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Min Health:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMinHealth" Minimum="1" Value="10" Maximum="30" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Max Health:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMaxHealth" Minimum="1" Value="15" Maximum="30" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Min Items per Round:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMinItems" Minimum="1" Value="1" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Max Items per Round:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMaxItems" Minimum="1" Value="4" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Min Bullets per Round:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMinBullets" Minimum="2" Value="2" Maximum="8" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Max Bullets per Round:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <Slider Name="SettingsMaxBullets" Minimum="2" Value="8" Maximum="8" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
+                    </StackPanel>
+                    <TextBlock/>
+                    <TextBlock Text="Experiments:" Foreground="White"/>
+                    <TextBlock/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Dunce Dealer:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <CheckBox Name="SettingsDunceDealer" IsChecked="False"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Original Items only:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <CheckBox Name="SettingsOriginalItemsOnly" IsChecked="False"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="No Items:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <CheckBox Name="SettingsNoItems" IsChecked="False"/>
+                    </StackPanel>
+                </StackPanel>
+                <ListView HorizontalAlignment="Stretch" Grid.Row="1" Name="SettingsItems" TextBlock.Foreground="White" Background="Transparent" Margin="5">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListViewItem}">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type ListViewItem}">
+                                        <Border BorderBrush="Transparent" BorderThickness="0" Background="{TemplateBinding Background}">
+                                            <GridViewRowPresenter HorizontalAlignment="Stretch" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Width="Auto" Margin="0" Content="{TemplateBinding Content}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.View>
+                        <GridView ColumnHeaderContainerStyle="{StaticResource StyleGVC}">
+                            <GridViewColumn Header="Item" Width="300">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Margin="5,0" Text="{Binding ItemName}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Enabled" Width="50">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Margin="5,0" IsChecked="{Binding IsEnabled}" HorizontalAlignment="Center"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Grid>
             <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MainMenu" Visibility="Hidden">
                 <TextBlock Visibility="Hidden"/>
                 <TextBox Visibility="Hidden"/>
-                <TextBlock Visibility="Hidden"/>
-                <TextBox Visibility="Hidden"/>
+                <TextBlock Text="Server IP:" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBox MaxLength="20" Text="127.0.0.1" Background="Black" Foreground="White" Name="IP" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" HorizontalContentAlignment="Center"/>
                 <TextBlock Visibility="Hidden"/>
                 <Button Background="Black" Foreground="White" Name="SessionJoin" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Join Session" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="SessionStart" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Create Session" Click="Button_Click"/>
@@ -54,7 +175,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="4*"/>
                 </Grid.ColumnDefinitions>
-                <ListView Name="Playerlist" Margin="5" SelectionChanged="ListView_SelectionChanged" TextBlock.Foreground="White" Background="Transparent"/>
+                <ListView Name="Playerlist" Margin="5" SelectionChanged="ListView_SelectionChanged" TextBlock.Foreground="White" Background="Transparent" Visibility="Hidden"/>
             </Grid>
         </Grid>
         <Grid Name="Game" Visibility="Hidden" Background="Black">

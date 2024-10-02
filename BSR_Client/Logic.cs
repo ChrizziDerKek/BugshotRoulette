@@ -132,19 +132,64 @@ namespace BSR_Client
             }
         }
 
-        public void AttemptConnect(bool host)
+        public void SwitchToHostMenu()
+        {
+            if (GameStarted)
+                return;
+            SetMenuState(EMenuState.Host);
+            UpdatePlayerlist();
+            HostUsername.Text = Username.Text;
+            Lobby.Text = LobbyJoin.Text;
+        }
+
+        public void UpdatePlayerlist()
+        {
+            Playerlist.Items.Clear();
+            foreach (string player in Players)
+                Playerlist.Items.Add(player);
+            Playerlist.Items.Refresh();
+            StartGame.Content = IsHost() && Players.Count > 1 ? "Start Game" : "";
+        }
+
+        public bool IsValidIP(string ip)
+        {
+            int ndots = 0;
+            foreach (char c in ip)
+                if (c == '.')
+                    ndots++;
+            if (ndots != 3)
+                return false;
+            string[] data = ip.Split('.');
+            foreach (string s in data)
+            {
+                if (!int.TryParse(s, out int i))
+                    return false;
+                if (i > 255 || i < 0)
+                    return false;
+            }
+            return true;
+        }
+
+        public bool IsHost()
+        {
+            if (string.IsNullOrEmpty(Host) || string.IsNullOrEmpty(You))
+                return false;
+            return Host == You;
+        }
+
+        public void AttemptConnect(bool host, string ip)
         {
             string username = host ? HostUsername.Text : Username.Text;
             string session = host ? Lobby.Text : LobbyJoin.Text;
             try
             {
-                Sync = new ClientWorker("127.0.0.1", 19121);
+                Sync = new ClientWorker(ip, 19121);
                 Sync.OnPacketReceived += Client_OnPacketReceived;
                 Sync.Start();
                 You = username;
                 Session = session;
                 Packet.Send(new PacketJoinRequest(Session, You, !host), Sync);
-                GameSettings.Content = "";
+                GameSettings.Content = "Game Settings";
                 SessionHost.Content = "";
                 Connect.Content = "";
             }
@@ -154,8 +199,53 @@ namespace BSR_Client
             }
         }
 
+        public void PopulateSettings()
+        {
+            SettingsData defaultdata = new SettingsData();
+            foreach (KeyValuePair<EItem, bool> it in defaultdata.EnabledItems)
+                SettingsItems.Items.Add(new SettingsItem(it.Key, it.Value));
+            SettingsBotDealer.IsChecked = defaultdata.BotDealer;
+            SettingsMaxPlayers.Value = defaultdata.MaxHealth;
+            SettingsMinHealth.Value = defaultdata.MinHealth;
+            SettingsMaxHealth.Value = defaultdata.MaxHealth;
+            SettingsMinItems.Value = defaultdata.MinItems;
+            SettingsMaxItems.Value = defaultdata.MaxItems;
+            SettingsMinBullets.Value = defaultdata.MinBullets;
+            SettingsMaxBullets.Value = defaultdata.MaxBullets;
+            SettingsDunceDealer.IsChecked = defaultdata.DunceDealer;
+            SettingsOriginalItemsOnly.IsChecked = defaultdata.OriginalItemsOnly;
+            SettingsNoItems.IsChecked = defaultdata.NoItems;
+        }
+
+        public void SyncSettings()
+        {
+            Dictionary<EItem, bool> enabled = new Dictionary<EItem, bool>();
+            foreach (SettingsItem item in SettingsItems.Items)
+            {
+                if (!Enum.TryParse(item.ItemName, out EItem it))
+                    continue;
+                enabled.Add(it, item.IsEnabled);
+            }
+            SettingsData data = new SettingsData(
+                SettingsBotDealer.IsChecked == true,
+                (int)SettingsMaxPlayers.Value,
+                (int)SettingsMinHealth.Value,
+                (int)SettingsMaxHealth.Value,
+                (int)SettingsMinItems.Value,
+                (int)SettingsMaxItems.Value,
+                (int)SettingsMinBullets.Value,
+                (int)SettingsMaxBullets.Value,
+                SettingsDunceDealer.IsChecked == true,
+                SettingsOriginalItemsOnly.IsChecked == true,
+                SettingsNoItems.IsChecked == true,
+                enabled
+            );
+            Packet.Send(new PacketUpdateSettings(data), Sync);
+        }
+
         public void SetMenuState(EMenuState state)
         {
+            Playerlist.Visibility = state == EMenuState.Settings ? Visibility.Hidden : Visibility.Visible;
             switch (state)
             {
                 case EMenuState.Startup:

@@ -24,6 +24,7 @@ namespace BSR_Client
             ItemDisplays = new Button[] { Item1, Item2, Item3, Item4, Item5, Item6, Item7, Item8 };
             PlayerDisplays = new Button[] { Player1, Player2, Player3, Player4, Player5 };
             SetMenuState(EMenuState.Startup);
+            PopulateSettings();
         }
 
         private void Client_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
@@ -32,6 +33,12 @@ namespace BSR_Client
             {
                 switch (id)
                 {
+                    case EPacket.StartGame:
+                        {
+                            SetMenuState(EMenuState.Gamestart);
+                            GameStarted = true;
+                        }
+                        break;
                     case EPacket.JoinResponse:
                         {
                             PacketJoinResponse packet = new PacketJoinResponse(data);
@@ -44,13 +51,14 @@ namespace BSR_Client
                                     return;
                                 }
                                 Players = packet.GetPlayers();
+                                UpdatePlayerlist();
                             }
                             else
                             {
                                 Fatal("Failed to join session\nreason: " + packet.GetResponse().ToString(), false);
                                 SessionHost.Content = "Host Session";
                                 Connect.Content = "Connect";
-                                GameSettings.Content = "Game Settings";
+                                GameSettings.Content = "";
                                 return;
                             }
                         }
@@ -59,6 +67,7 @@ namespace BSR_Client
                         {
                             PacketNewPlayer packet = new PacketNewPlayer(data);
                             Players.Add(packet.GetPlayer());
+                            UpdatePlayerlist();
                         }
                         break;
                     case EPacket.RemoveLocalPlayer:
@@ -66,11 +75,18 @@ namespace BSR_Client
                             PacketRemoveLocalPlayer packet = new PacketRemoveLocalPlayer(data);
                             string player = packet.GetPlayer();
                             string host = packet.GetNewHost();
+                            bool didMigrate = false;
                             if (You == player)
                                 return;
                             Players.Remove(player);
                             if (!string.IsNullOrEmpty(host))
+                            {
                                 Host = host;
+                                didMigrate = true;
+                            }
+                            UpdatePlayerlist();
+                            if (IsHost() && didMigrate)
+                                SwitchToHostMenu();
                         }
                         break;
                 }
@@ -79,41 +95,48 @@ namespace BSR_Client
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            string action = (sender as Button).Name;
+            Button btn = sender as Button;
+            string action = btn.Name;
+            if (btn.Content.ToString() == "")
+                return;
             switch (action)
             {
                 case "SessionJoin":
+                    if (!IsValidIP(IP.Text))
+                        return;
                     SetMenuState(EMenuState.Join);
                     break;
                 case "SessionStart":
+                    if (!IsValidIP(IP.Text))
+                        return;
                     SetMenuState(EMenuState.Host);
                     Lobby.Text = Guid.NewGuid().ToString();
                     break;
                 case "GameSettings":
-                    if ((sender as Button).Content.ToString() == "")
-                        return;
                     SetMenuState(EMenuState.Settings);
                     break;
                 case "CopySession":
-                    if ((sender as Button).Content.ToString() == "")
-                        return;
                     Clipboard.SetText(Lobby.Text);
                     break;
                 case "SessionHost":
-                    if ((sender as Button).Content.ToString() == "")
-                        return;
-                    AttemptConnect(true);
+                    AttemptConnect(true, IP.Text);
+                    Username.IsReadOnly = true;
+                    HostUsername.IsReadOnly = true;
                     break;
                 case "Connect":
-                    if ((sender as Button).Content.ToString() == "")
+                    AttemptConnect(false, IP.Text);
+                    Username.IsReadOnly = true;
+                    HostUsername.IsReadOnly = true;
+                    break;
+                case "RestartGame":
+
+                    break;
+                case "StartGame":
+                    if (!IsHost())
                         return;
-                    AttemptConnect(false);
-                    break;
-                case "Restart":
-
-                    break;
-                case "Start":
-
+                    Packet.Send(new PacketStartGame(), Sync);
+                    SetMenuState(EMenuState.Gamestart);
+                    GameStarted = true;
                     break;
                 case "Shoot":
 
@@ -140,6 +163,13 @@ namespace BSR_Client
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            if (MenuSettings.Visibility == Visibility.Visible)
+            {
+                SetMenuState(EMenuState.Host);
+                e.Cancel = true;
+                SyncSettings();
+                return;
+            }
             if (Sync == null)
                 return;
             Packet.Send(new PacketDisconnected(), Sync);

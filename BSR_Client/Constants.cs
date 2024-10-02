@@ -1,41 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
 namespace BSR_Client
 {
-    public enum EBullet
-    {
-        Undefined,
-        Blank,
-        Live,
-    }
-
-    public enum EItem
-    {
-        Nothing,
-        Handcuffs,
-        Cigarettes,
-        Saw,
-        Magnifying,
-        Beer,
-        Inverter,
-        Medicine,
-        Phone,
-        Adrenaline,
-        Magazine,
-        Gunpowder,
-        Bullet,
-        Trashbin,
-        Heroine,
-        Katana,
-        Swapper,
-        Hat,
-        Count,
-    }
-
     public enum EMenuState
     {
         Startup,
@@ -44,6 +15,19 @@ namespace BSR_Client
         Settings,
         Gamestart,
         Gameover,
+    }
+
+    public class SettingsItem
+    {
+        public string ItemName { get; set; }
+
+        public bool IsEnabled { get; set; }
+
+        public SettingsItem(EItem item, bool enabled)
+        {
+            ItemName = item.ToString();
+            IsEnabled = enabled;
+        }
     }
 
     public partial class MainWindow
@@ -57,5 +41,6 @@ namespace BSR_Client
         private string Host = "";
         private string You = "";
         private string Session = "";
+        private bool GameStarted = false;
     }
 }
