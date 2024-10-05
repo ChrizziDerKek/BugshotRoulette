@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Net.Sockets;
 using System.Windows.Shapes;
 using System.Windows.Input;
+using System.Threading;
 
 namespace BSR_Client
 {
@@ -29,74 +30,156 @@ namespace BSR_Client
 
         private void Client_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
         {
+            PacketHandled = false;
             Dispatcher.Invoke(() =>
             {
-                switch (id)
+                try
                 {
-                    case EPacket.StartGame:
-                        {
-                            SetMenuState(EMenuState.Gamestart);
-                            GameStarted = true;
-                        }
-                        break;
-                    case EPacket.JoinResponse:
-                        {
-                            PacketJoinResponse packet = new PacketJoinResponse(data);
-                            if (packet.DidSucceed())
+                    switch (id)
+                    {
+                        case EPacket.StartGame:
                             {
-                                Host = packet.GetHost();
-                                if (packet.GetSession() != Session)
+                                SetMenuState(EMenuState.Gamestart);
+                                GameStarted = true;
+                            }
+                            break;
+                        case EPacket.JoinResponse:
+                            {
+                                PacketJoinResponse packet = new PacketJoinResponse(data);
+                                if (packet.DidSucceed())
                                 {
-                                    Fatal("Session id mismatch");
+                                    Host = packet.GetHost();
+                                    if (packet.GetSession() != Session)
+                                    {
+                                        Fatal("Session id mismatch");
+                                        return;
+                                    }
+                                    Players = packet.GetPlayers();
+                                    UpdatePlayerlist();
+                                }
+                                else
+                                {
+                                    Fatal("Failed to join session\nreason: " + packet.GetResponse().ToString(), false);
+                                    SessionHost.Content = "Host Session";
+                                    Connect.Content = "Connect";
+                                    GameSettings.Content = "";
                                     return;
                                 }
-                                Players = packet.GetPlayers();
+                            }
+                            break;
+                        case EPacket.NewPlayer:
+                            {
+                                PacketNewPlayer packet = new PacketNewPlayer(data);
+                                Players.Add(packet.GetPlayer());
                                 UpdatePlayerlist();
                             }
-                            else
+                            break;
+                        case EPacket.RemoveLocalPlayer:
                             {
-                                Fatal("Failed to join session\nreason: " + packet.GetResponse().ToString(), false);
-                                SessionHost.Content = "Host Session";
-                                Connect.Content = "Connect";
-                                GameSettings.Content = "";
-                                return;
+                                PacketRemoveLocalPlayer packet = new PacketRemoveLocalPlayer(data);
+                                string player = packet.GetPlayer();
+                                string host = packet.GetNewHost();
+                                bool didMigrate = false;
+                                if (You == player)
+                                    return;
+                                Players.Remove(player);
+                                if (!string.IsNullOrEmpty(host))
+                                {
+                                    Host = host;
+                                    didMigrate = true;
+                                }
+                                UpdatePlayerlist();
+                                if (IsHost() && didMigrate)
+                                    SwitchToHostMenu();
                             }
-                        }
-                        break;
-                    case EPacket.NewPlayer:
-                        {
-                            PacketNewPlayer packet = new PacketNewPlayer(data);
-                            Players.Add(packet.GetPlayer());
-                            UpdatePlayerlist();
-                        }
-                        break;
-                    case EPacket.RemoveLocalPlayer:
-                        {
-                            PacketRemoveLocalPlayer packet = new PacketRemoveLocalPlayer(data);
-                            string player = packet.GetPlayer();
-                            string host = packet.GetNewHost();
-                            bool didMigrate = false;
-                            if (You == player)
-                                return;
-                            Players.Remove(player);
-                            if (!string.IsNullOrEmpty(host))
+                            break;
+                        case EPacket.StartRound:
                             {
-                                Host = host;
-                                didMigrate = true;
+                                PacketStartRound packet = new PacketStartRound(data);
+                                ShowBullets(packet.GetBullets().ToArray());
+                                OverrideItems(packet.GetItems());
+                                bool initial = packet.ShouldUpdateLives();
+                                if (initial)
+                                {
+                                    SetMaxHealth(packet.GetLives());
+                                    ResetPlayerSlots();
+                                }
                             }
-                            UpdatePlayerlist();
-                            if (IsHost() && didMigrate)
-                                SwitchToHostMenu();
-                        }
-                        break;
-                    case EPacket.StartRound:
-                        {
-                            PacketStartRound packet = new PacketStartRound(data);
-                            
-                        }
-                        break;
+                            break;
+                        case EPacket.PassControl:
+                            {
+                                PacketPassControl packet = new PacketPassControl(data);
+                                if (packet.GetTarget() != You)
+                                    return;
+                                SetActive(true);
+                            }
+                            break;
+                        case EPacket.Shoot:
+                            {
+                                PacketShoot packet = new PacketShoot(data);
+                                string shooter = packet.GetSender();
+                                string target = packet.GetTarget();
+                                EShotFlags flags = packet.GetFlags();
+                                string targetstr = target;
+                                if (shooter == You && target == shooter)
+                                    targetstr = "yourself";
+                                if (shooter != You && target == You)
+                                    target = "you";
+                                if (shooter != You && target == shooter)
+                                    targetstr = "themselves";
+                                string shooterstr = shooter;
+                                string plural = "s";
+                                if (shooter == You)
+                                {
+                                    shooterstr = "You";
+                                    plural = "";
+                                }
+                                Announce(string.Format("{0} shoot{1} {2}", shooterstr, plural, targetstr));
+                                EBullet type = packet.GetBullet();
+                                bool inverted = packet.HasFlag(EShotFlags.Inverted);
+                                if (type == EBullet.Blank)
+                                    Announce("The bullet was a blank");
+                                else
+                                    Announce("The bullet was a live");
+                                HideBullet(type, inverted);
+                                if (IsFlagSet(EFlags.Shooting))
+                                {
+                                    ResetFlag(EFlags.Shooting);
+                                    Packet.Send(new PacketControlRequest(), Sync);
+                                }
+                                if (packet.HasFlag(EShotFlags.DisplayOnly))
+                                    return;
+                                int damage = 0;
+                                if (type == EBullet.Live)
+                                {
+                                    damage = 1;
+                                    if (packet.HasFlag(EShotFlags.SawedOff))
+                                        damage++;
+                                    if (packet.HasFlag(EShotFlags.Gunpowdered))
+                                        damage += 2;
+                                    if (packet.HasFlag(EShotFlags.GunpowderBackfired))
+                                        damage--;
+                                }
+                                UpdateHealth(GetHealth() - damage, true);
+                            }
+                            break;
+                        case EPacket.UpdateHealth:
+                            {
+                                PacketUpdateHealth packet = new PacketUpdateHealth(data);
+                                if (packet.GetTarget() == You)
+                                    return;
+                                UpdateHealth(packet.GetValue(), false, packet.GetTarget());
+                            }
+                            break;
+                    }
+                }
+                finally
+                {
+                    PacketHandled = true;
                 }
             });
+            while (!PacketHandled)
+                Thread.Sleep(1);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -108,44 +191,63 @@ namespace BSR_Client
             switch (action)
             {
                 case "SessionJoin":
-                    if (!IsValidIP(IP.Text))
-                        return;
-                    SetMenuState(EMenuState.Join);
+                    {
+                        if (!IsValidIP(IP.Text))
+                            return;
+                        SetMenuState(EMenuState.Join);
+                    }
                     break;
                 case "SessionStart":
-                    if (!IsValidIP(IP.Text))
-                        return;
-                    SetMenuState(EMenuState.Host);
-                    Lobby.Text = Guid.NewGuid().ToString();
+                    {
+                        if (!IsValidIP(IP.Text))
+                            return;
+                        SetMenuState(EMenuState.Host);
+                        Lobby.Text = Guid.NewGuid().ToString();
+                    }
                     break;
                 case "GameSettings":
-                    SetMenuState(EMenuState.Settings);
+                    {
+                        SetMenuState(EMenuState.Settings);
+                    }
                     break;
                 case "CopySession":
-                    Clipboard.SetText(Lobby.Text);
+                    {
+                        Clipboard.SetText(Lobby.Text);
+                    }
                     break;
                 case "SessionHost":
-                    AttemptConnect(true, IP.Text);
-                    Username.IsReadOnly = true;
-                    HostUsername.IsReadOnly = true;
+                    {
+                        AttemptConnect(true, IP.Text);
+                        Username.IsReadOnly = true;
+                        HostUsername.IsReadOnly = true;
+                    }
                     break;
                 case "Connect":
-                    AttemptConnect(false, IP.Text);
-                    Username.IsReadOnly = true;
-                    HostUsername.IsReadOnly = true;
+                    {
+                        AttemptConnect(false, IP.Text);
+                        Username.IsReadOnly = true;
+                        HostUsername.IsReadOnly = true;
+                    }
                     break;
                 case "RestartGame":
+                    {
 
+                    }
                     break;
                 case "StartGame":
-                    if (!IsHost())
-                        return;
-                    Packet.Send(new PacketStartGame(), Sync);
-                    SetMenuState(EMenuState.Gamestart);
-                    GameStarted = true;
+                    {
+                        if (!IsHost())
+                            return;
+                        Packet.Send(new PacketStartGame(), Sync);
+                        SetMenuState(EMenuState.Gamestart);
+                        GameStarted = true;
+                    }
                     break;
                 case "Shoot":
-
+                    {
+                        SetFlag(EFlags.Shooting);
+                        SetPlayersInteractable(true);
+                    }
                     break;
                 case "Item1":
                 case "Item2":
@@ -155,14 +257,22 @@ namespace BSR_Client
                 case "Item6":
                 case "Item7":
                 case "Item8":
+                    {
 
+                    }
                     break;
                 case "Player1":
                 case "Player2":
                 case "Player3":
                 case "Player4":
                 case "Player5":
-
+                    {
+                        if (IsFlagSet(EFlags.Shooting))
+                        {
+                            string target = GetPlayerFromSlot(action);
+                            Packet.Send(new PacketShoot(You, target, EShotFlags.None), Sync);
+                        }
+                    }
                     break;
             }
         }

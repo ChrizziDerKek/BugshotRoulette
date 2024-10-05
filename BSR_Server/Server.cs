@@ -25,9 +25,13 @@ namespace Server
         private int CurrentPlayer;
         private Random RNG;
         private Dictionary<string, EItem[]> PlayerItems;
+        private Dictionary<string, int> PlayerHealth;
         private List<EBullet> ActualBullets;
         private List<EBullet> DisplayedBullets;
         private string Code;
+        private int StartLives;
+        private bool CanGoAgain;
+        private int ExpectedDamage;
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -65,6 +69,29 @@ namespace Server
             ActualBullets = new List<EBullet>();
             DisplayedBullets = new List<EBullet>();
             Code = code;
+            StartLives = 0;
+            CanGoAgain = false;
+            PlayerHealth = new Dictionary<string, int>();
+            ExpectedDamage = 0;
+        }
+
+        public void ExpectDamage(int damage) => ExpectedDamage = damage;
+
+        public int GetExpectedDamage() => ExpectedDamage;
+
+        public Random GetRNG() => RNG;
+
+        public int GetHealth(string player) => PlayerHealth[player];
+
+        public void SetHealth(string player, int health) => PlayerHealth[player] = health;
+
+        public EBullet PopBullet()
+        {
+            if (ActualBullets.Count == 0)
+                return EBullet.Undefined;
+            EBullet bullet = ActualBullets[0];
+            ActualBullets.RemoveAt(0);
+            return bullet;
         }
 
         public string GetSession() => Code;
@@ -72,6 +99,18 @@ namespace Server
         public void MigrateHost() => Host = NextHosts.Dequeue();
 
         public bool IsPlayerConnected(string player) => Players.Contains(player);
+
+        public bool ShouldSwitchPlayer()
+        {
+            if (CanGoAgain)
+            {
+                CanGoAgain = false;
+                return false;
+            }
+            return true;
+        }
+
+        public void SetAgain(bool again) => CanGoAgain = again;
 
         public void AddPlayer(string player)
         {
@@ -84,6 +123,8 @@ namespace Server
         public void RemovePlayer(string player)
         {
             Players.Remove(player);
+            PlayerItems.Remove(player);
+            PlayerHealth.Remove(player);
             if (Players.Count < Settings.MaxPlayers)
                 Locked = false;
         }
@@ -110,13 +151,38 @@ namespace Server
 
         public void SetFirstPlayer() => CurrentPlayer = RNG.Next(0, Players.Count);
 
+        public int GetMaxHealth() => StartLives;
+
+        public string GetCurrentPlayer() => Players[CurrentPlayer];
+
         public int SwitchPlayer()
         {
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
             return CurrentPlayer;
         }
 
-        public void GenerateBullets()
+        public void RoundStart(bool initial)
+        {
+            int nitems = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
+            GenerateBullets();
+            foreach (string player in Players)
+                GenerateItems(player, nitems, false);
+            if (initial)
+            {
+                GenerateLives();
+                foreach (string player in Players)
+                {
+                    if (!PlayerHealth.ContainsKey(player))
+                        PlayerHealth.Add(player, StartLives);
+                    else
+                        PlayerHealth[player] = StartLives;
+                }
+            }
+        }
+
+        private void GenerateLives() => StartLives = RNG.Next(Settings.MinHealth, Settings.MaxHealth + 1);
+
+        private void GenerateBullets()
         {
             int min = Settings.MinBullets;
             int max = Settings.MaxBullets;
@@ -159,11 +225,10 @@ namespace Server
             ShuffleBullets();
         }
 
-        public void GenerateItems(string player, bool bot)
+        private void GenerateItems(string player, int count, bool bot)
         {
             if (Settings.NoItems)
                 return;
-            int count = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
             for (int i = 0; i < count; i++)
             {
                 int start = (int)EItem.Nothing + 1;
@@ -405,9 +470,90 @@ namespace Server
             {
                 switch (id)
                 {
+                    case EPacket.UpdateHealth:
+                        {
+                            PacketUpdateHealth packet = new PacketUpdateHealth(data);
+                            Console.WriteLine(packet.ToString());
+                            Session session = Sessions[sender.GetSession()];
+                            string target = packet.GetTarget();
+                            int health = session.GetHealth(target);
+                            if (health - session.GetExpectedDamage() != packet.GetValue())
+                            {
+                                Console.WriteLine("Rejected because of unexpected health value");
+                                return;
+                            }
+                            Broadcast(packet, session, "Health Sync");
+                        }
+                        break;
+                    case EPacket.Shoot:
+                        {
+                            PacketShoot packet = new PacketShoot(data);
+                            Console.WriteLine(packet.ToString());
+                            Session session = Sessions[sender.GetSession()];
+                            string actualsender = packet.GetSender();
+                            if (actualsender != sender.GetPlayer())
+                            {
+                                Console.WriteLine("Rejected because sender doesn't match");
+                                return;
+                            }
+                            if (session.GetCurrentPlayer() != sender.GetPlayer())
+                            {
+                                Console.WriteLine("Rejected because player isn't in control");
+                                return;
+                            }
+                            string target = packet.GetTarget();
+                            EBullet type = session.PopBullet();
+                            if (actualsender == target && type == EBullet.Blank)
+                                session.SetAgain(true);
+                            bool backfired = false;
+                            int damage = 0;
+                            if (type == EBullet.Live)
+                            {
+                                damage = 1;
+                                if (packet.HasFlag(EShotFlags.SawedOff))
+                                    damage++;
+                                if (packet.HasFlag(EShotFlags.Gunpowdered))
+                                {
+                                    damage += 2;
+                                    if (session.GetRNG().Next(0, 2) == 0)
+                                    {
+                                        target = actualsender;
+                                        backfired = true;
+                                        damage--;
+                                    }
+                                }
+                            }
+                            session.ExpectDamage(damage);
+                            Broadcast(cli =>
+                            {
+                                EShotFlags flags = packet.GetFlags();
+                                if (cli.GetPlayer() != target)
+                                    flags |= EShotFlags.DisplayOnly;
+                                if (backfired)
+                                    flags |= EShotFlags.GunpowderBackfired;
+                                return new PacketShoot(actualsender, target, flags, type);
+                            }, session, "Shooting");
+                        }
+                        break;
+                    case EPacket.ControlRequest:
+                        {
+                            PacketControlRequest packet = new PacketControlRequest(data);
+                            Console.WriteLine(packet.ToString());
+                            Session session = Sessions[sender.GetSession()];
+                            if (session.GetCurrentPlayer() != sender.GetPlayer())
+                            {
+                                Console.WriteLine("Rejected because player isn't in control");
+                                return;
+                            }
+                            if (session.ShouldSwitchPlayer())
+                                session.SwitchPlayer();
+                            string nextplayer = session.GetCurrentPlayer();
+                            Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                        }
+                        break;
                     case EPacket.StartGame:
                         {
-                            PacketStartGame packet = new PacketStartGame();
+                            PacketStartGame packet = new PacketStartGame(data);
                             Console.WriteLine(packet.ToString());
                             if (!IsHost(sender))
                             {
@@ -418,10 +564,11 @@ namespace Server
                             session.Lock();
                             session.SetFirstPlayer();
                             Broadcast(packet, sender, "Game Start");
-                            session.GenerateBullets();
-                            foreach (string player in session.GetPlayers())
-                                session.GenerateItems(player, false);
-                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer())), session, "Round Start");
+                            session.RoundStart(true);
+                            int health = session.GetMaxHealth();
+                            string firstplayer = session.GetCurrentPlayer();
+                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), health), session, "Round Start");
+                            Broadcast(new PacketPassControl(firstplayer), session, "Pass Control");
                         }
                         break;
                     case EPacket.UpdateSettings:

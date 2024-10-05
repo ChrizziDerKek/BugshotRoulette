@@ -18,6 +18,10 @@ public enum EPacket
     UpdateSettings,
     StartGame,
     StartRound,
+    ControlRequest,
+    PassControl,
+    Shoot,
+    UpdateHealth,
 }
 
 public enum EJoinResponse
@@ -58,6 +62,16 @@ public enum EItem
     Swapper,
     Hat,
     Count,
+}
+
+public enum EShotFlags
+{
+    None = 0,
+    SawedOff = 1 << 0,
+    Gunpowdered = 1 << 1,
+    DisplayOnly = 1 << 2,
+    Inverted = 1 << 3,
+    GunpowderBackfired = 1 << 4,
 }
 
 public class SettingsData
@@ -110,27 +124,148 @@ public class SettingsData
     }
 }
 
+class PacketUpdateHealth : Packet
+{
+    private string Target;
+    private int Value;
+
+    public override EPacket Id => EPacket.UpdateHealth;
+
+    public PacketUpdateHealth(List<byte> data) => Receive(data);
+
+    public PacketUpdateHealth(string target, int value)
+    {
+        Target = target;
+        Value = value;
+    }
+
+    public string GetTarget() => Target;
+
+    public int GetValue() => Value;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeStr(ref Target);
+        sync.SerializeInt(ref Value);
+    }
+
+    public override string ToString() => string.Format("{0}: Target {1}, Value {2}", Id.ToString(), Target, Value);
+}
+
+class PacketShoot : Packet
+{
+    private string Sender;
+    private string Who;
+    private EShotFlags Flags;
+    private EBullet Type;
+
+    public override EPacket Id => EPacket.Shoot;
+
+    public PacketShoot(List<byte> data) => Receive(data);
+
+    public PacketShoot(string sender, string who, EShotFlags flags, EBullet type = EBullet.Undefined)
+    {
+        Sender = sender;
+        Who = who;
+        Flags = flags;
+        Type = type;
+    }
+
+    public string GetSender() => Sender;
+
+    public string GetTarget() => Who;
+
+    public bool HasFlag(EShotFlags flag) => (Flags & flag) != 0;
+
+    public EShotFlags GetFlags() => Flags;
+
+    public EBullet GetBullet() => Type;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeStr(ref Sender);
+        sync.SerializeStr(ref Who);
+        int temp = (int)Flags;
+        sync.SerializeInt(ref temp);
+        Flags = (EShotFlags)temp;
+        temp = (int)Type;
+        sync.SerializeInt(ref temp);
+        Type = (EBullet)temp;
+    }
+
+    public override string ToString() => string.Format("{0}: Sender {1}, Who {2}, Flags {3}, Type {4}", Id.ToString(), Sender, Who, (int)Flags, Type.ToString());
+}
+
+class PacketControlRequest : Packet
+{
+    public override EPacket Id => EPacket.ControlRequest;
+
+    public PacketControlRequest(List<byte> data) => Receive(data);
+
+    public PacketControlRequest()
+    {
+
+    }
+
+    protected override void Serialize(ISync sync)
+    {
+
+    }
+
+    public override string ToString() => string.Format("{0}", Id.ToString());
+}
+
+class PacketPassControl : Packet
+{
+    private string Target;
+
+    public override EPacket Id => EPacket.PassControl;
+
+    public PacketPassControl(List<byte> data) => Receive(data);
+
+    public PacketPassControl(string target)
+    {
+        Target = target;
+    }
+
+    public string GetTarget() => Target;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeStr(ref Target);
+    }
+
+    public override string ToString() => string.Format("{0}: Target {1}", Id.ToString(), Target);
+}
+
 class PacketStartRound : Packet
 {
     private List<EBullet> Bullets;
     private EItem[] Items;
+    private int Lives;
 
     public override EPacket Id => EPacket.StartRound;
 
     public PacketStartRound(List<byte> data) => Receive(data);
 
-    public PacketStartRound(List<EBullet> bullets, EItem[] items)
+    public PacketStartRound(List<EBullet> bullets, EItem[] items, int lives = -1)
     {
         Bullets = bullets;
         Items = items;
+        Lives = lives;
     }
 
     public List<EBullet> GetBullets() => Bullets;
 
     public EItem[] GetItems() => Items;
 
+    public bool ShouldUpdateLives() => Lives != -1;
+
+    public int GetLives() => Lives;
+
     protected override void Serialize(ISync sync)
     {
+        sync.SerializeInt(ref Lives);
         if (Bullets == null)
         {
             Bullets = new List<EBullet>();
@@ -742,7 +877,7 @@ public class ClientWorker : IDisposable
     {
         Socket = client;
         Stream = Socket.GetStream();
-        Lock = null;
+        Lock = new Mutex();
         IsClient = false;
         Player = null;
     }
@@ -788,11 +923,9 @@ public class ClientWorker : IDisposable
     /// <param name="data">Data to send</param>
     public void Send(List<byte> data)
     {
-        if (IsClient)
-            Lock.WaitOne();
+        Lock.WaitOne();
         Stream.Write(data.ToArray(), 0, data.Count);
-        if (IsClient)
-            Lock.ReleaseMutex();
+        Lock.ReleaseMutex();
     }
 
     /// <summary>

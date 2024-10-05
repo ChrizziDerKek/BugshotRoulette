@@ -8,6 +8,8 @@ using System.Windows.Media.Imaging;
 using System.Collections.Generic;
 using System.Windows.Shapes;
 using System.Windows.Documents;
+using System.Runtime.Remoting.Messaging;
+using System.Xml.Linq;
 
 namespace BSR_Client
 {
@@ -92,6 +94,108 @@ namespace BSR_Client
             return (text as TextBlock).Text;
         }
 
+        public string GetPlayerFromSlot(string slot)
+        {
+            for (int i = 0; i < PlayerDisplays.Length; i++)
+                if (PlayerDisplays[i].Name == slot)
+                    return GetPlayerName(i);
+            return "";
+        }
+
+        public void SetActive(bool active)
+        {
+            Shoot.IsEnabled = active;
+            foreach (Button it in ItemDisplays)
+                it.IsEnabled = active;
+            foreach (Button it in PlayerDisplays)
+                it.IsEnabled = false;
+            if (active)
+                Announce("Your turn");
+        }
+
+        public void PopulatePlayerSlot(Button slot, string player, bool angry)
+        {
+            if (slot == null)
+                return;
+            if (!(slot.Content is Grid))
+                return;
+            UIElement text = (slot.Content as Grid).Children[1];
+            if (!(text is TextBlock))
+                return;
+            bool remove = string.IsNullOrEmpty(player);
+            if (!remove)
+                (text as TextBlock).Text = player;
+            UIElement image = (slot.Content as Grid).Children[0];
+            if (!(image is Image))
+                return;
+            if (remove)
+                (image as Image).Source = null;
+            else
+                (image as Image).Source = new BitmapImage(new Uri(angry ? "textures/dealer2.png" : "textures/dealer1.png", UriKind.Relative));
+        }
+
+        public void SetPlayersInteractable(bool interactable)
+        {
+            SetActive(!interactable);
+            foreach (Button it in PlayerDisplays)
+                it.IsEnabled = interactable;
+        }
+
+        public void ResetPlayerSlots()
+        {
+            //int yourslot = 0;
+            for (int i = 0; i < Players.Count; i++)
+            {
+                //if (Players[i] == You)
+                //    yourslot = i;
+                PopulatePlayerSlot(PlayerDisplays[i], Players[i], false);
+            }
+            //if (yourslot == 0)
+            //    return;
+            //string other = GetPlayerName(0);
+            //PopulatePlayerSlot(PlayerDisplays[0], You, false);
+            //PopulatePlayerSlot(PlayerDisplays[yourslot], other, false);
+            //Players[0] = You;
+            //Players[yourslot] = other;
+        }
+
+        public void PutItemInSlot(Button slot, EItem item)
+        {
+            if (slot == null)
+                return;
+            slot.Visibility = item == EItem.Nothing ? Visibility.Hidden : Visibility.Visible;
+            if (item != EItem.Nothing)
+            {
+                if (!ItemDescriptions.TryGetValue(item, out string desc))
+                    desc = "NO DESCRIPTION";
+                slot.ToolTip = item.ToString() + "\n\n" + desc;
+            }
+            else slot.ToolTip = null;
+            if (!(slot.Content is Grid))
+                return;
+            UIElement text = (slot.Content as Grid).Children[1];
+            if (!(text is TextBlock))
+                return;
+            (text as TextBlock).Text = item.ToString();
+            UIElement image = (slot.Content as Grid).Children[0];
+            if (!(image is Image))
+                return;
+            string texture = item.ToString().ToLower();
+            if (item == EItem.Nothing)
+                (image as Image).Source = null;
+            else
+                (image as Image).Source = new BitmapImage(new Uri("textures/" + texture + ".png", UriKind.Relative));
+        }
+
+        public void OverrideItems(EItem[] items)
+        {
+            for (int i = 0; i < items.Length; i++)
+            {
+                Button slot = ItemDisplays[i];
+                PutItemInSlot(slot, items[i]);
+            }
+        }
+
         public void HideBullets()
         {
             foreach (Rectangle b in BulletDisplays)
@@ -102,6 +206,7 @@ namespace BSR_Client
         {
             if (bulletlist.Length > 8)
                 return;
+            HideBullets();
             int nblank = 0;
             int nlive = 0;
             foreach (EBullet b in bulletlist)
@@ -113,6 +218,33 @@ namespace BSR_Client
             }
             for (int i = 0; i < bulletlist.Length; i++)
                 BulletDisplays[i].Fill = bulletlist[i] == EBullet.Live ? Brushes.Red : bulletlist[i] == EBullet.Blank ? Brushes.Gray : Brushes.Green;
+        }
+
+        public void HideBullet(EBullet bullet, bool inverted)
+        {
+            Brush target = null;
+            if (!inverted)
+            {
+                if (bullet == EBullet.Live)
+                    target = Brushes.Red;
+                else if (bullet == EBullet.Blank)
+                    target = Brushes.Gray;
+            }
+            else
+            {
+                if (bullet == EBullet.Live)
+                    target = Brushes.Gray;
+                else if (bullet == EBullet.Blank)
+                    target = Brushes.Red;
+            }
+            foreach (Rectangle b in BulletDisplays)
+            {
+                if (b.Fill == target)
+                {
+                    b.Fill = Brushes.Transparent;
+                    break;
+                }
+            }
         }
 
         public void RemoveBullet(EBullet type)
@@ -199,6 +331,37 @@ namespace BSR_Client
             }
         }
 
+        public void UpdateHealth(int health, bool sync, string player = null)
+        {
+            if (player == null)
+                player = You;
+            if (health < 0)
+                health = 0;
+            if (health > GetMaxHealth())
+                health = GetMaxHealth();
+            if (GetHealth() == health)
+                return;
+            for (int i = 0; i < Players.Count; i++)
+            {
+                if (Players[i] == player)
+                {
+                    HealthBars[i].Value = health;
+                    break;
+                }
+            }
+            if (!sync)
+                return;
+            Packet.Send(new PacketUpdateHealth(player, health), Sync);
+        }
+
+        public int GetHealth()
+        {
+            for (int i = 0; i < Players.Count; i++)
+                if (Players[i] == You)
+                    return (int)HealthBars[i].Value;
+            return -1;
+        }
+
         public void PopulateSettings()
         {
             SettingsData defaultdata = new SettingsData();
@@ -242,6 +405,12 @@ namespace BSR_Client
             );
             Packet.Send(new PacketUpdateSettings(data), Sync);
         }
+
+        public void SetFlag(EFlags flag) => Flags |= flag;
+
+        public void ResetFlag(EFlags flags) => Flags &= ~flags;
+
+        public bool IsFlagSet(EFlags flag) => (Flags & flag) != 0;
 
         public void SetMenuState(EMenuState state)
         {
