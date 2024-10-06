@@ -264,6 +264,11 @@ namespace BSR_Client
             }
         }
 
+        public void UpdateTitle()
+        {
+            Title += " - " + You;
+        }
+
         public void SwitchToHostMenu()
         {
             if (GameStarted)

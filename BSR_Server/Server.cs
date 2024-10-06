@@ -94,6 +94,8 @@ namespace Server
             return bullet;
         }
 
+        public int GetBulletCount() => ActualBullets.Count;
+
         public string GetSession() => Code;
 
         public void MigrateHost() => Host = NextHosts.Dequeue();
@@ -184,6 +186,8 @@ namespace Server
 
         private void GenerateBullets()
         {
+            ActualBullets.Clear();
+            DisplayedBullets.Clear();
             int min = Settings.MinBullets;
             int max = Settings.MaxBullets;
             int even = RNG.Next(0, 100);
@@ -482,6 +486,7 @@ namespace Server
                                 Console.WriteLine("Rejected because of unexpected health value");
                                 return;
                             }
+                            session.SetHealth(target, packet.GetValue());
                             Broadcast(packet, session, "Health Sync");
                         }
                         break;
@@ -533,6 +538,11 @@ namespace Server
                                     flags |= EShotFlags.GunpowderBackfired;
                                 return new PacketShoot(actualsender, target, flags, type);
                             }, session, "Shooting");
+                            if (session.GetBulletCount() == 0)
+                            {
+                                session.RoundStart(false);
+                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer())), session, "New Round Start");
+                            }
                         }
                         break;
                     case EPacket.ControlRequest:

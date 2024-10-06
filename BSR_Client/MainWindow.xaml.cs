@@ -227,6 +227,7 @@ namespace BSR_Client
                         AttemptConnect(false, IP.Text);
                         Username.IsReadOnly = true;
                         HostUsername.IsReadOnly = true;
+                        UpdateTitle();
                     }
                     break;
                 case "RestartGame":
@@ -241,6 +242,7 @@ namespace BSR_Client
                         Packet.Send(new PacketStartGame(), Sync);
                         SetMenuState(EMenuState.Gamestart);
                         GameStarted = true;
+                        UpdateTitle();
                     }
                     break;
                 case "Shoot":
