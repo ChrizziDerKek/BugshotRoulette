@@ -96,7 +96,9 @@ namespace BSR_Client
                         case EPacket.StartRound:
                             {
                                 PacketStartRound packet = new PacketStartRound(data);
-                                ShowBullets(packet.GetBullets().ToArray());
+                                List<EBullet> bullets = packet.GetBullets();
+                                Announce(string.Format("{0} lives, {1} blanks", GetBulletCount(bullets, EBullet.Live), GetBulletCount(bullets, EBullet.Blank)));
+                                ShowBullets(bullets.ToArray());
                                 OverrideItems(packet.GetItems());
                                 bool initial = packet.ShouldUpdateLives();
                                 if (initial)
@@ -110,7 +112,10 @@ namespace BSR_Client
                             {
                                 PacketPassControl packet = new PacketPassControl(data);
                                 if (packet.GetTarget() != You)
+                                {
+                                    Announce(packet.GetTarget() + "'s turn");
                                     return;
+                                }
                                 SetActive(true);
                             }
                             break;

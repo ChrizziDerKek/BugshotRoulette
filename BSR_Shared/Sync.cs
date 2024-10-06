@@ -22,6 +22,7 @@ public enum EPacket
     PassControl,
     Shoot,
     UpdateHealth,
+    SyncHealth,
 }
 
 public enum EJoinResponse

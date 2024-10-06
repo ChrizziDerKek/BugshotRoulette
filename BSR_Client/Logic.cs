@@ -266,7 +266,10 @@ namespace BSR_Client
 
         public void UpdateTitle()
         {
-            Title += " - " + You;
+            string extension = " - " + You;
+            if (Title.Contains(extension))
+                return;
+            Title += extension;
         }
 
         public void SwitchToHostMenu()
@@ -344,7 +347,7 @@ namespace BSR_Client
                 health = 0;
             if (health > GetMaxHealth())
                 health = GetMaxHealth();
-            if (GetHealth() == health)
+            if (GetHealth(player) == health)
                 return;
             for (int i = 0; i < Players.Count; i++)
             {
@@ -359,10 +362,21 @@ namespace BSR_Client
             Packet.Send(new PacketUpdateHealth(player, health), Sync);
         }
 
-        public int GetHealth()
+        public int GetBulletCount(List<EBullet> bullets, EBullet type)
         {
+            int count = 0;
+            foreach (EBullet bullet in bullets)
+                if (type == bullet)
+                    count++;
+            return count;
+        }
+
+        public int GetHealth(string player = null)
+        {
+            if (player == null)
+                player = You;
             for (int i = 0; i < Players.Count; i++)
-                if (Players[i] == You)
+                if (Players[i] == player)
                     return (int)HealthBars[i].Value;
             return -1;
         }
