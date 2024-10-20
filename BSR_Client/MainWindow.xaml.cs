@@ -9,13 +9,17 @@ using System.Net.Sockets;
 using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace BSR_Client
 {
     public partial class MainWindow : Window
     {
+        [DllImport("kernel32.dll")] static extern bool AllocConsole();
+
         public MainWindow()
         {
+            AllocConsole();
             InitializeComponent();
             string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             version = version.Substring(0, version.Length - 2);
@@ -39,6 +43,8 @@ namespace BSR_Client
                     {
                         case EPacket.StartGame:
                             {
+                                PacketStartGame packet = new PacketStartGame(data);
+                                Console.WriteLine(packet.ToString());
                                 SetMenuState(EMenuState.Gamestart);
                                 GameStarted = true;
                             }
@@ -46,6 +52,7 @@ namespace BSR_Client
                         case EPacket.JoinResponse:
                             {
                                 PacketJoinResponse packet = new PacketJoinResponse(data);
+                                Console.WriteLine(packet.ToString());
                                 if (packet.DidSucceed())
                                 {
                                     Host = packet.GetHost();
@@ -70,6 +77,7 @@ namespace BSR_Client
                         case EPacket.NewPlayer:
                             {
                                 PacketNewPlayer packet = new PacketNewPlayer(data);
+                                Console.WriteLine(packet.ToString());
                                 Players.Add(packet.GetPlayer());
                                 UpdatePlayerlist();
                             }
@@ -77,6 +85,7 @@ namespace BSR_Client
                         case EPacket.RemoveLocalPlayer:
                             {
                                 PacketRemoveLocalPlayer packet = new PacketRemoveLocalPlayer(data);
+                                Console.WriteLine(packet.ToString());
                                 string player = packet.GetPlayer();
                                 string host = packet.GetNewHost();
                                 bool didMigrate = false;
@@ -96,6 +105,7 @@ namespace BSR_Client
                         case EPacket.StartRound:
                             {
                                 PacketStartRound packet = new PacketStartRound(data);
+                                Console.WriteLine(packet.ToString());
                                 List<EBullet> bullets = packet.GetBullets();
                                 Announce(string.Format("{0} lives, {1} blanks", GetBulletCount(bullets, EBullet.Live), GetBulletCount(bullets, EBullet.Blank)));
                                 ShowBullets(bullets.ToArray());
@@ -111,6 +121,7 @@ namespace BSR_Client
                         case EPacket.PassControl:
                             {
                                 PacketPassControl packet = new PacketPassControl(data);
+                                Console.WriteLine(packet.ToString());
                                 if (packet.GetTarget() != You)
                                 {
                                     Announce(packet.GetTarget() + "'s turn");
@@ -122,6 +133,7 @@ namespace BSR_Client
                         case EPacket.Shoot:
                             {
                                 PacketShoot packet = new PacketShoot(data);
+                                Console.WriteLine(packet.ToString());
                                 string shooter = packet.GetSender();
                                 string target = packet.GetTarget();
                                 EShotFlags flags = packet.GetFlags();
@@ -171,6 +183,7 @@ namespace BSR_Client
                         case EPacket.UpdateHealth:
                             {
                                 PacketUpdateHealth packet = new PacketUpdateHealth(data);
+                                Console.WriteLine(packet.ToString());
                                 if (packet.GetTarget() == You)
                                     return;
                                 UpdateHealth(packet.GetValue(), false, packet.GetTarget());
