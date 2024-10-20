@@ -18,11 +18,8 @@ public enum EPacket
     UpdateSettings,
     StartGame,
     StartRound,
-    ControlRequest,
     PassControl,
     Shoot,
-    UpdateHealth,
-    SyncHealth,
 }
 
 public enum EJoinResponse
@@ -125,34 +122,6 @@ public class SettingsData
     }
 }
 
-class PacketUpdateHealth : Packet
-{
-    private string Target;
-    private int Value;
-
-    public override EPacket Id => EPacket.UpdateHealth;
-
-    public PacketUpdateHealth(List<byte> data) => Receive(data);
-
-    public PacketUpdateHealth(string target, int value)
-    {
-        Target = target;
-        Value = value;
-    }
-
-    public string GetTarget() => Target;
-
-    public int GetValue() => Value;
-
-    protected override void Serialize(ISync sync)
-    {
-        sync.SerializeStr(ref Target);
-        sync.SerializeInt(ref Value);
-    }
-
-    public override string ToString() => string.Format("{0}: Target {1}, Value {2}", Id.ToString(), Target, Value);
-}
-
 class PacketShoot : Packet
 {
     private string Sender;
@@ -195,25 +164,6 @@ class PacketShoot : Packet
     }
 
     public override string ToString() => string.Format("{0}: Sender {1}, Who {2}, Flags {3}, Type {4}", Id.ToString(), Sender, Who, (int)Flags, Type.ToString());
-}
-
-class PacketControlRequest : Packet
-{
-    public override EPacket Id => EPacket.ControlRequest;
-
-    public PacketControlRequest(List<byte> data) => Receive(data);
-
-    public PacketControlRequest()
-    {
-
-    }
-
-    protected override void Serialize(ISync sync)
-    {
-
-    }
-
-    public override string ToString() => string.Format("{0}", Id.ToString());
 }
 
 class PacketPassControl : Packet

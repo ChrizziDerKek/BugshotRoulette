@@ -339,7 +339,7 @@ namespace BSR_Client
             }
         }
 
-        public void UpdateHealth(int health, bool sync, string player = null)
+        public void UpdateHealth(int health, string player = null)
         {
             if (player == null)
                 player = You;
@@ -357,9 +357,6 @@ namespace BSR_Client
                     break;
                 }
             }
-            if (!sync)
-                return;
-            Packet.Send(new PacketUpdateHealth(player, health), Sync);
         }
 
         public int GetBulletCount(List<EBullet> bullets, EBullet type)

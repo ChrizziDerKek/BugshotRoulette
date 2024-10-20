@@ -19,7 +19,7 @@ namespace BSR_Client
 
         public MainWindow()
         {
-            AllocConsole();
+            //AllocConsole();
             InitializeComponent();
             string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             version = version.Substring(0, version.Length - 2);
@@ -159,13 +159,6 @@ namespace BSR_Client
                                 else
                                     Announce("The bullet was a live");
                                 HideBullet(type, inverted);
-                                if (IsFlagSet(EFlags.Shooting))
-                                {
-                                    ResetFlag(EFlags.Shooting);
-                                    Packet.Send(new PacketControlRequest(), Sync);
-                                }
-                                if (packet.HasFlag(EShotFlags.DisplayOnly))
-                                    return;
                                 int damage = 0;
                                 if (type == EBullet.Live)
                                 {
@@ -177,16 +170,9 @@ namespace BSR_Client
                                     if (packet.HasFlag(EShotFlags.GunpowderBackfired))
                                         damage--;
                                 }
-                                UpdateHealth(GetHealth() - damage, true);
-                            }
-                            break;
-                        case EPacket.UpdateHealth:
-                            {
-                                PacketUpdateHealth packet = new PacketUpdateHealth(data);
-                                Console.WriteLine(packet.ToString());
-                                if (packet.GetTarget() == You)
-                                    return;
-                                UpdateHealth(packet.GetValue(), false, packet.GetTarget());
+                                UpdateHealth(GetHealth(target) - damage, target);
+                                if (IsFlagSet(EFlags.Shooting))
+                                    ResetFlag(EFlags.Shooting);
                             }
                             break;
                     }

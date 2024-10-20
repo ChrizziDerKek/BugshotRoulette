@@ -31,7 +31,6 @@ namespace Server
         private string Code;
         private int StartLives;
         private bool CanGoAgain;
-        private int ExpectedDamage;
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -72,12 +71,7 @@ namespace Server
             StartLives = 0;
             CanGoAgain = false;
             PlayerHealth = new Dictionary<string, int>();
-            ExpectedDamage = 0;
         }
-
-        public void ExpectDamage(int damage) => ExpectedDamage = damage;
-
-        public int GetExpectedDamage() => ExpectedDamage;
 
         public Random GetRNG() => RNG;
 
@@ -474,22 +468,6 @@ namespace Server
             {
                 switch (id)
                 {
-                    case EPacket.UpdateHealth:
-                        {
-                            PacketUpdateHealth packet = new PacketUpdateHealth(data);
-                            Console.WriteLine(packet.ToString());
-                            Session session = Sessions[sender.GetSession()];
-                            string target = packet.GetTarget();
-                            int health = session.GetHealth(target);
-                            if (health - session.GetExpectedDamage() != packet.GetValue())
-                            {
-                                Console.WriteLine("Rejected because of unexpected health value");
-                                return;
-                            }
-                            session.SetHealth(target, packet.GetValue());
-                            Broadcast(packet, session, "Health Sync");
-                        }
-                        break;
                     case EPacket.Shoot:
                         {
                             PacketShoot packet = new PacketShoot(data);
@@ -528,7 +506,11 @@ namespace Server
                                     }
                                 }
                             }
-                            session.ExpectDamage(damage);
+                            int health = session.GetHealth(target);
+                            health -= damage;
+                            if (health < 0)
+                                health = 0;
+                            session.SetHealth(target, health);
                             Broadcast(cli =>
                             {
                                 EShotFlags flags = packet.GetFlags();
@@ -542,18 +524,6 @@ namespace Server
                             {
                                 session.RoundStart(false);
                                 Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer())), session, "New Round Start");
-                            }
-                        }
-                        break;
-                    case EPacket.ControlRequest:
-                        {
-                            PacketControlRequest packet = new PacketControlRequest(data);
-                            Console.WriteLine(packet.ToString());
-                            Session session = Sessions[sender.GetSession()];
-                            if (session.GetCurrentPlayer() != sender.GetPlayer())
-                            {
-                                Console.WriteLine("Rejected because player isn't in control");
-                                return;
                             }
                             if (session.ShouldSwitchPlayer())
                                 session.SwitchPlayer();
