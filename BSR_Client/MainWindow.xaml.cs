@@ -141,7 +141,7 @@ namespace BSR_Client
                                 if (shooter == You && target == shooter)
                                     targetstr = "yourself";
                                 if (shooter != You && target == You)
-                                    target = "you";
+                                    targetstr = "you";
                                 if (shooter != You && target == shooter)
                                     targetstr = "themselves";
                                 string shooterstr = shooter;
