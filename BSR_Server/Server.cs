@@ -511,15 +511,10 @@ namespace Server
                             if (health < 0)
                                 health = 0;
                             session.SetHealth(target, health);
-                            Broadcast(cli =>
-                            {
-                                EShotFlags flags = packet.GetFlags();
-                                if (cli.GetPlayer() != target)
-                                    flags |= EShotFlags.DisplayOnly;
-                                if (backfired)
-                                    flags |= EShotFlags.GunpowderBackfired;
-                                return new PacketShoot(actualsender, target, flags, type);
-                            }, session, "Shooting");
+                            EShotFlags flags = packet.GetFlags();
+                            if (backfired)
+                                flags |= EShotFlags.GunpowderBackfired;
+                            Broadcast(new PacketShoot(actualsender, target, flags, type), session, "Shooting");
                             if (session.GetBulletCount() == 0)
                             {
                                 session.RoundStart(false);
