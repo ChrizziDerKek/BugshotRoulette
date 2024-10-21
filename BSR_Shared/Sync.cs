@@ -67,9 +67,8 @@ public enum EShotFlags
     None = 0,
     SawedOff = 1 << 0,
     Gunpowdered = 1 << 1,
-    DisplayOnly = 1 << 2,
-    Inverted = 1 << 3,
-    GunpowderBackfired = 1 << 4,
+    Inverted = 1 << 2,
+    GunpowderBackfired = 1 << 3,
 }
 
 public class SettingsData
