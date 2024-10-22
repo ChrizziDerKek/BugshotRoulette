@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
+using System.Threading;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -276,7 +277,29 @@ namespace Server
 
         public List<EBullet> GetBullets(bool display) => display ? DisplayedBullets : ActualBullets;
 
+        public EBullet GetNextBullet() => ActualBullets[0];
+
         public EItem[] GetItems(string player) => PlayerItems[player];
+
+        public bool PlayerHasItem(string player, EItem item)
+        {
+            foreach (EItem it in PlayerItems[player])
+                if (item == it)
+                    return true;
+            return false;
+        }
+
+        public void RemoveItem(string player, EItem item)
+        {
+            for (int i = 0; i < PlayerItems[player].Length; i++)
+            {
+                if (PlayerItems[player][i] == item)
+                {
+                    PlayerItems[player][i] = EItem.Nothing;
+                    break;
+                }
+            }
+        }
 
         private int GetItemCount(string player, EItem item)
         {
@@ -436,6 +459,79 @@ namespace Server
             {
                 switch (id)
                 {
+                    case EPacket.UseItem:
+                        {
+                            PacketUseItem packet = new PacketUseItem(data);
+                            Console.WriteLine(packet.ToString());
+                            string user = packet.GetSender();
+                            string target = packet.GetTarget();
+                            EItem item = packet.GetItem();
+                            Session session = Sessions[sender.GetSession()];
+                            if (!session.PlayerHasItem(user, item))
+                            {
+                                Console.WriteLine("Rejected because sender doesn't have the item");
+                                return;
+                            }
+                            session.RemoveItem(user, item);
+                            switch (item)
+                            {
+                                case EItem.Handcuffs:
+                                    break;
+                                case EItem.Cigarettes:
+                                    {
+                                        int health = session.GetHealth(user);
+                                        session.SetHealth(user, health + 1);
+                                        Broadcast(new PacketUsedItem(user, 1, true), session, "Item usage");
+                                    }
+                                    break;
+                                case EItem.Saw:
+                                    break;
+                                case EItem.Magnifying:
+                                    {
+                                        EBullet bullet = session.GetNextBullet();
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined), session, "Item usage");
+                                    }
+                                    break;
+                                case EItem.Beer:
+                                    break;
+                                case EItem.Inverter:
+                                    break;
+                                case EItem.Medicine:
+                                    {
+                                        int health = session.GetHealth(user);
+                                        int modifier = 2;
+                                        if (session.GetRNG().Next(0, 2) == 0)
+                                            modifier = -1;
+                                        session.SetHealth(user, health + modifier);
+                                        Broadcast(new PacketUsedItem(user, modifier, false), session, "Item usage");
+                                    }
+                                    break;
+                                case EItem.Phone:
+                                    break;
+                                case EItem.Adrenaline:
+                                    break;
+                                case EItem.Magazine:
+                                    break;
+                                case EItem.Gunpowder:
+                                    break;
+                                case EItem.Bullet:
+                                    break;
+                                case EItem.Trashbin:
+                                    break;
+                                case EItem.Heroine:
+                                    break;
+                                case EItem.Katana:
+                                    break;
+                                case EItem.Swapper:
+                                    break;
+                                case EItem.Hat:
+                                    {
+                                        Broadcast(new PacketUsedItem(user, EItem.Hat), session, "Item usage");
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
                     case EPacket.Shoot:
                         {
                             PacketShoot packet = new PacketShoot(data);
@@ -488,6 +584,7 @@ namespace Server
                                 session.RoundStart(false);
                                 Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
                             }
+                            Thread.Sleep(100);
                             if (session.ShouldSwitchPlayer())
                                 session.SwitchPlayer();
                             string nextplayer = session.GetCurrentPlayer();
