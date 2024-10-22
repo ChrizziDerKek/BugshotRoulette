@@ -195,23 +195,23 @@
             </Grid.RowDefinitions>
             <Grid Grid.Row="1" Grid.Column="0">
                 <ProgressBar Name="Health1"  Margin="5" Minimum="0" Maximum="15" Background="#454545"/>
-                <TextBlock Name="HealthText1" Text="{Binding ElementName=Health1, Path=Value}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Name="HealthText1" Text="{Binding ElementName=Health1, Path=Value}" Visibility="{Binding ElementName=Health1, Path=Visibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
             </Grid>
             <Grid Grid.Row="1" Grid.Column="1">
                 <ProgressBar Name="Health2" Margin="5" Minimum="0" Maximum="15" Background="#454545"/>
-                <TextBlock Name="HealthText2" Text="{Binding ElementName=Health2, Path=Value}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Name="HealthText2" Text="{Binding ElementName=Health2, Path=Value}" Visibility="{Binding ElementName=Health2, Path=Visibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
             </Grid>
             <Grid Grid.Row="1" Grid.Column="2">
                 <ProgressBar Name="Health3" Margin="5" Minimum="0" Maximum="15" Background="#454545"/>
-                <TextBlock Name="HealthText3" Text="{Binding ElementName=Health3, Path=Value}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Name="HealthText3" Text="{Binding ElementName=Health3, Path=Value}" Visibility="{Binding ElementName=Health3, Path=Visibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
             </Grid>
             <Grid Grid.Row="1" Grid.Column="3">
                 <ProgressBar Name="Health4" Margin="5" Minimum="0" Maximum="15" Background="#454545"/>
-                <TextBlock Name="HealthText4" Text="{Binding ElementName=Health4, Path=Value}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Name="HealthText4" Text="{Binding ElementName=Health4, Path=Value}" Visibility="{Binding ElementName=Health4, Path=Visibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
             </Grid>
             <Grid Grid.Row="1" Grid.Column="4">
                 <ProgressBar Name="Health5" Margin="5" Minimum="0" Maximum="15" Background="#454545"/>
-                <TextBlock Name="HealthText5" Text="{Binding ElementName=Health5, Path=Value}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
+                <TextBlock Name="HealthText5" Text="{Binding ElementName=Health5, Path=Value}" Visibility="{Binding ElementName=Health5, Path=Visibility}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
             </Grid>
             <Button Margin="5" Grid.Row="2" Grid.Column="2" Name="Shoot" Click="Button_Click" IsEnabled="False" BorderBrush="#454545">
                 <Grid>

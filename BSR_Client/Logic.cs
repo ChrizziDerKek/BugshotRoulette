@@ -63,6 +63,14 @@ namespace BSR_Client
             return (int)HealthBars[0].Maximum;
         }
 
+        public bool DoesPlayerExist(int slot)
+        {
+            string name = GetPlayerName(slot);
+            if (string.IsNullOrEmpty(name))
+                return false;
+            return name.ToLower() != "none";
+        }
+
         public int GetPlayerIndex(string player)
         {
             for (int i = 0; i < PlayerDisplays.Length; i++)
@@ -81,9 +89,9 @@ namespace BSR_Client
             return -1;
         }
 
-        public string GetPlayerName(int player)
+        public string GetPlayerName(int slot)
         {
-            Button p = PlayerDisplays[player];
+            Button p = PlayerDisplays[slot];
             if (!(p.Content is Grid))
                 return "";
             UIElement text = (p.Content as Grid).Children[1];
@@ -136,27 +144,29 @@ namespace BSR_Client
 
         public void SetPlayersInteractable(bool interactable)
         {
-            SetActive(!interactable);
-            foreach (Button it in PlayerDisplays)
-                it.IsEnabled = interactable;
+            if (interactable)
+                SetActive(false);
+            for (int i = 0; i < PlayerDisplays.Length; i++)
+                if (DoesPlayerExist(i))
+                    PlayerDisplays[i].IsEnabled = interactable;
         }
 
         public void ResetPlayerSlots()
         {
-            //int yourslot = 0;
+            int yourslot = 0;
             for (int i = 0; i < Players.Count; i++)
             {
-                //if (Players[i] == You)
-                //    yourslot = i;
+                if (Players[i] == You)
+                    yourslot = i;
                 PopulatePlayerSlot(PlayerDisplays[i], Players[i], false);
             }
-            //if (yourslot == 0)
-            //    return;
-            //string other = GetPlayerName(0);
-            //PopulatePlayerSlot(PlayerDisplays[0], You, false);
-            //PopulatePlayerSlot(PlayerDisplays[yourslot], other, false);
-            //Players[0] = You;
-            //Players[yourslot] = other;
+            if (yourslot == 0)
+                return;
+            string other = GetPlayerName(0);
+            PopulatePlayerSlot(PlayerDisplays[0], You, false);
+            PopulatePlayerSlot(PlayerDisplays[yourslot], other, false);
+            Players[0] = You;
+            Players[yourslot] = other;
         }
 
         public void PutItemInSlot(Button slot, EItem item)
@@ -270,6 +280,17 @@ namespace BSR_Client
             if (Title.Contains(extension))
                 return;
             Title += extension;
+        }
+
+        public void RemoveInactivePlayerSlots()
+        {
+            for (int i = 0; i < PlayerDisplays.Length; i++)
+            {
+                if (DoesPlayerExist(i))
+                    continue;
+                PlayerDisplays[i].Visibility = Visibility.Hidden;
+                HealthBars[i].Visibility = Visibility.Hidden;
+            }
         }
 
         public void SwitchToHostMenu()

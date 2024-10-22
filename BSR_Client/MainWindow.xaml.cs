@@ -15,11 +15,8 @@ namespace BSR_Client
 {
     public partial class MainWindow : Window
     {
-        [DllImport("kernel32.dll")] static extern bool AllocConsole();
-
         public MainWindow()
         {
-            //AllocConsole();
             InitializeComponent();
             string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             version = version.Substring(0, version.Length - 2);
@@ -110,11 +107,24 @@ namespace BSR_Client
                                 Announce(string.Format("{0} lives, {1} blanks", GetBulletCount(bullets, EBullet.Live), GetBulletCount(bullets, EBullet.Blank)));
                                 ShowBullets(bullets.ToArray());
                                 OverrideItems(packet.GetItems());
+                                foreach (string player in Players)
+                                {
+                                    List<EItem> items = packet.GetGeneratedItems(player);
+                                    string playername = player;
+                                    if (playername == You)
+                                        playername = "You";
+                                    string itemlist = "";
+                                    foreach (EItem item in items)
+                                        itemlist += ", " + item.ToString();
+                                    itemlist = itemlist.Substring(2);
+                                    Announce(string.Format("{0} got {1}", playername, itemlist));
+                                }
                                 bool initial = packet.ShouldUpdateLives();
                                 if (initial)
                                 {
                                     SetMaxHealth(packet.GetLives());
                                     ResetPlayerSlots();
+                                    RemoveInactivePlayerSlots();
                                 }
                             }
                             break;
@@ -275,6 +285,7 @@ namespace BSR_Client
                     {
                         if (IsFlagSet(EFlags.Shooting))
                         {
+                            SetPlayersInteractable(false);
                             string target = GetPlayerFromSlot(action);
                             Packet.Send(new PacketShoot(You, target, EShotFlags.None), Sync);
                         }
