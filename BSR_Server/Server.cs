@@ -582,7 +582,8 @@ namespace Server
                             if (session.GetBulletCount() == 0)
                             {
                                 session.RoundStart(false);
-                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
+                                bool intense = session.GetRNG().Next(0, 2) == 0;
+                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), intense), session, "New Round Start");
                             }
                             Thread.Sleep(100);
                             if (session.ShouldSwitchPlayer())
@@ -607,7 +608,8 @@ namespace Server
                             session.RoundStart(true);
                             int health = session.GetMaxHealth();
                             string firstplayer = session.GetCurrentPlayer();
-                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), health), session, "Round Start");
+                            bool intense = session.GetRNG().Next(0, 2) == 0;
+                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), intense, health), session, "Round Start");
                             Broadcast(new PacketPassControl(firstplayer), session, "Pass Control");
                         }
                         break;

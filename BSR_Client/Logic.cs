@@ -533,6 +533,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Visible;
                     MenuSettings.Visibility = Visibility.Hidden;
+                    
                     break;
                 case EMenuState.Gameover:
                     MenuSessionJoin.Visibility = Visibility.Hidden;

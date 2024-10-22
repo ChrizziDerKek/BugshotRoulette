@@ -28,6 +28,7 @@ namespace BSR_Client
             PlayerDisplays = new Button[] { Player1, Player2, Player3, Player4, Player5 };
             SetMenuState(EMenuState.Startup);
             PopulateSettings();
+            Sound.PlayMusic(EMusic.Title);
         }
 
         private void Client_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
@@ -123,6 +124,7 @@ namespace BSR_Client
                                 bool initial = packet.ShouldUpdateLives();
                                 if (initial)
                                 {
+                                    Sound.PlayMusic(packet.ShouldPlayIntenseTheme() ? EMusic.BackgroundIntense : EMusic.Background);
                                     SetMaxHealth(packet.GetLives());
                                     ResetPlayerSlots();
                                     RemoveInactivePlayerSlots();
@@ -181,6 +183,7 @@ namespace BSR_Client
                                     if (packet.HasFlag(EShotFlags.GunpowderBackfired))
                                         damage--;
                                 }
+                                Sound.PlayShotSfx(type, flags);
                                 UpdateHealth(GetHealth(target) - damage, target);
                                 if (IsFlagSet(EFlags.Shooting))
                                     ResetFlag(EFlags.Shooting);
@@ -191,6 +194,7 @@ namespace BSR_Client
                                 PacketUsedItem packet = new PacketUsedItem(data);
                                 string user = packet.GetSender();
                                 EItem item = packet.GetItem();
+                                Sound.PlayItemSfx(item);
                                 string userstr = user;
                                 if (userstr == You)
                                     userstr = "You";

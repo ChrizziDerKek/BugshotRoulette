@@ -327,17 +327,19 @@ class PacketStartRound : Packet
     private EItem[] Items;
     private int Lives;
     private Dictionary<string, List<EItem>> Generated;
+    private bool Intense;
 
     public override EPacket Id => EPacket.StartRound;
 
     public PacketStartRound(List<byte> data) => Receive(data);
 
-    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, int lives = -1)
+    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, bool intense, int lives = -1)
     {
         Bullets = bullets;
         Items = items;
         Lives = lives;
         Generated = generated;
+        Intense = intense;
     }
 
     public List<EBullet> GetBullets() => Bullets;
@@ -350,9 +352,12 @@ class PacketStartRound : Packet
 
     public List<EItem> GetGeneratedItems(string player) => Generated[player];
 
+    public bool ShouldPlayIntenseTheme() => Intense;
+
     protected override void Serialize(ISync sync)
     {
         sync.SerializeInt(ref Lives);
+        sync.SerializeBool(ref Intense);
         if (Bullets == null)
         {
             Bullets = new List<EBullet>();

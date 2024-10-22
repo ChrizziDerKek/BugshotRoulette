@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Reflection;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -14,6 +16,15 @@ namespace BSR_Client
         Host,
         Settings,
         Gamestart,
+        Gameover,
+    }
+
+    public enum EMusic
+    {
+        Undefined,
+        Title,
+        Background,
+        BackgroundIntense,
         Gameover,
     }
 
@@ -38,6 +49,212 @@ namespace BSR_Client
         {
             ItemName = item.ToString();
             IsEnabled = enabled;
+        }
+    }
+
+    public class SoundLib
+    {
+        private readonly MediaPlayer Title = new MediaPlayer() { Volume = 0.05 };
+        private readonly MediaPlayer Background1 = new MediaPlayer() { Volume = 0.05 };
+        private readonly MediaPlayer Background2 = new MediaPlayer() { Volume = 0.05 };
+        private readonly MediaPlayer End = new MediaPlayer() { Volume = 0.05 };
+        private readonly MediaPlayer Empty = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Shot = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer GunpowderShot = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Saw = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Magnify = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Beer = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Cig = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Handcuff = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Inverter = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Medicine = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Phone = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Adrenaline = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Magazine = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Gunpowder = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Bullet = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Trashbin = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Heroine = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Katana = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Swapper = new MediaPlayer() { Volume = 1.0 };
+        private readonly MediaPlayer Hat = new MediaPlayer() { Volume = 1.0 };
+        private bool WasPlaying = false;
+        private EMusic Playing = EMusic.Undefined;
+
+        public void PlayMusic(EMusic id)
+        {
+            if (id == Playing)
+                return;
+            Playing = id;
+            if (!ShouldPlay())
+                return;
+            Title.MediaEnded -= Media_Ended;
+            Background1.MediaEnded -= Media_Ended;
+            Background2.MediaEnded -= Media_Ended;
+            End.MediaEnded -= Media_Ended;
+            Title.Stop();
+            Background1.Stop();
+            Background2.Stop();
+            End.Stop();
+            Title.MediaEnded += Media_Ended;
+            Background1.MediaEnded += Media_Ended;
+            Background2.MediaEnded += Media_Ended;
+            End.MediaEnded += Media_Ended;
+            switch (id)
+            {
+                case EMusic.Title:
+                    Title.Play();
+                    break;
+                case EMusic.Background:
+                    Background1.Play();
+                    break;
+                case EMusic.BackgroundIntense:
+                    Background2.Play();
+                    break;
+                case EMusic.Gameover:
+                    End.Play();
+                    break;
+            }
+        }
+
+        public void PlayShotSfx(EBullet bullet, EShotFlags flags)
+        {
+            if (!ShouldPlay())
+                return;
+            if (bullet == EBullet.Live)
+            {
+                if ((flags & EShotFlags.Gunpowdered) != 0)
+                {
+                    PlayOnce(GunpowderShot);
+                    return;
+                }
+                PlayOnce(Shot);
+                return;
+            }
+            PlayOnce(Empty);
+        }
+
+        public void PlayItemSfx(EItem item)
+        {
+            if (!ShouldPlay())
+                return;
+            switch (item)
+            {
+                case EItem.Handcuffs:
+                    PlayOnce(Handcuff);
+                    break;
+                case EItem.Cigarettes:
+                    PlayOnce(Cig);
+                    break;
+                case EItem.Saw:
+                    PlayOnce(Saw);
+                    break;
+                case EItem.Magnifying:
+                    PlayOnce(Magnify);
+                    break;
+                case EItem.Beer:
+                    PlayOnce(Beer);
+                    break;
+                case EItem.Inverter:
+                    PlayOnce(Inverter);
+                    break;
+                case EItem.Medicine:
+                    PlayOnce(Medicine);
+                    break;
+                case EItem.Phone:
+                    PlayOnce(Phone);
+                    break;
+                case EItem.Adrenaline:
+                    PlayOnce(Adrenaline);
+                    break;
+                case EItem.Magazine:
+                    PlayOnce(Magazine);
+                    break;
+                case EItem.Gunpowder:
+                    PlayOnce(Gunpowder);
+                    break;
+                case EItem.Bullet:
+                    PlayOnce(Bullet);
+                    break;
+                case EItem.Trashbin:
+                    PlayOnce(Trashbin);
+                    break;
+                case EItem.Heroine:
+                    PlayOnce(Heroine);
+                    break;
+                case EItem.Katana:
+                    PlayOnce(Katana);
+                    break;
+                case EItem.Swapper:
+                    PlayOnce(Swapper);
+                    break;
+                case EItem.Hat:
+                    PlayOnce(Hat);
+                    break;
+            }
+        }
+
+        private bool IsOtherProcessRunning()
+        {
+            Process current = Process.GetCurrentProcess();
+            Process[] processes = Process.GetProcessesByName(current.ProcessName);
+            foreach (Process process in processes)
+                if (process.Id != current.Id)
+                    if (Assembly.GetExecutingAssembly().Location.Replace("/", "\\") == current.MainModule.FileName)
+                        return true;
+            return false;
+        }
+
+        private bool ShouldPlay()
+        {
+            if (IsOtherProcessRunning() && !WasPlaying)
+                return false;
+            WasPlaying = true;
+            return true;
+        }
+
+        private void PlayOnce(MediaPlayer player)
+        {
+            player.Position = TimeSpan.Zero;
+            player.Play();
+        }
+
+        private void Media_Ended(object sender, EventArgs e)
+        {
+            (sender as MediaPlayer).Position = TimeSpan.Zero;
+            (sender as MediaPlayer).Play();
+        }
+
+        public SoundLib()
+        {
+            Title.Open(new Uri("sounds/bsr_title.wav", UriKind.Relative));
+            Background1.Open(new Uri("sounds/bsr_background1.wav", UriKind.Relative));
+            Background2.Open(new Uri("sounds/bsr_background2.wav", UriKind.Relative));
+            End.Open(new Uri("sounds/bsr_end.wav", UriKind.Relative));
+            Empty.Open(new Uri("sounds/bsr_empty.wav", UriKind.Relative));
+            Shot.Open(new Uri("sounds/bsr_shot.wav", UriKind.Relative));
+            GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.wav", UriKind.Relative));
+            Saw.Open(new Uri("sounds/bsr_saw.wav", UriKind.Relative));
+            Magnify.Open(new Uri("sounds/bsr_magnify.wav", UriKind.Relative));
+            Beer.Open(new Uri("sounds/bsr_beer.wav", UriKind.Relative));
+            Cig.Open(new Uri("sounds/bsr_cig.wav", UriKind.Relative));
+            Handcuff.Open(new Uri("sounds/bsr_handcuff.wav", UriKind.Relative));
+            Inverter.Open(new Uri("sounds/bsr_inverter.wav", UriKind.Relative));
+            Medicine.Open(new Uri("sounds/bsr_medicine.wav", UriKind.Relative));
+            Phone.Open(new Uri("sounds/bsr_phone.wav", UriKind.Relative));
+            Adrenaline.Open(new Uri("sounds/bsr_adrenaline.wav", UriKind.Relative));
+            Magazine.Open(new Uri("sounds/bsr_magazine.wav", UriKind.Relative));
+            Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
+            Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
+            Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
+            Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
+            Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
+            Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
+            Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
+            Title.MediaEnded += Media_Ended;
+            Background1.MediaEnded += Media_Ended;
+            Background2.MediaEnded += Media_Ended;
+            End.MediaEnded += Media_Ended;
         }
     }
 
@@ -66,10 +283,10 @@ namespace BSR_Client
             { EItem.Count, null },
         };
 
-        private Rectangle[] BulletDisplays = null;
-        private ProgressBar[] HealthBars = null;
-        private Button[] ItemDisplays = null;
-        private Button[] PlayerDisplays = null;
+        private readonly Rectangle[] BulletDisplays = null;
+        private readonly ProgressBar[] HealthBars = null;
+        private readonly Button[] ItemDisplays = null;
+        private readonly Button[] PlayerDisplays = null;
         private ClientWorker Sync = null;
         private List<string> Players = new List<string>();
         private string Host = "";
@@ -78,5 +295,6 @@ namespace BSR_Client
         private bool GameStarted = false;
         private EFlags Flags = EFlags.None;
         private bool PacketHandled = false;
+        private readonly SoundLib Sound = new SoundLib();
     }
 }
