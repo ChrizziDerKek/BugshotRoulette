@@ -22,6 +22,7 @@ public enum EPacket
     PassControl,
     Shoot,
     UseItem,
+    UsedItem,
 }
 
 public enum EJoinResponse
@@ -123,6 +124,97 @@ public class SettingsData
     }
 }
 
+class PacketUsedItem : Packet
+{
+    private string Sender;
+    private EItem Item;
+    private EBullet Bullet;
+    private int Healed;
+
+    public override EPacket Id => EPacket.UsedItem;
+
+    public PacketUsedItem(List<byte> data) => Receive(data);
+
+    public PacketUsedItem(string sender, EItem item)
+    {
+        Sender = sender;
+        Item = item;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+    }
+
+    public PacketUsedItem(string sender, int healed, bool cigs)
+    {
+        Sender = sender;
+        Item = cigs ? EItem.Cigarettes : EItem.Medicine;
+        Bullet = EBullet.Undefined;
+        Healed = healed;
+    }
+
+    public PacketUsedItem(string sender, EBullet bullet)
+    {
+        Sender = sender;
+        Item = EItem.Magnifying;
+        Bullet = bullet;
+    }
+
+    public string GetSender() => Sender;
+
+    public EItem GetItem() => Item;
+
+    public EBullet GetBullet() => Bullet;
+
+    public int GetHealAmount() => Healed;
+
+    protected override void Serialize(ISync sync)
+    {
+        int item = (int)Item;
+        sync.SerializeInt(ref item);
+        Item = (EItem)item;
+        sync.SerializeStr(ref Sender);
+        switch (Item)
+        {
+            case EItem.Handcuffs:
+                break;
+            case EItem.Saw:
+                break;
+            case EItem.Magnifying:
+                {
+                    int bullet = (int)Bullet;
+                    sync.SerializeInt(ref bullet);
+                    Bullet = (EBullet)bullet;
+                }
+                break;
+            case EItem.Beer:
+                break;
+            case EItem.Inverter:
+                break;
+            case EItem.Cigarettes:
+            case EItem.Medicine:
+                sync.SerializeInt(ref Healed);
+                break;
+            case EItem.Phone:
+                break;
+            case EItem.Adrenaline:
+                break;
+            case EItem.Magazine:
+                break;
+            case EItem.Gunpowder:
+                break;
+            case EItem.Bullet:
+                break;
+            case EItem.Trashbin:
+                break;
+            case EItem.Heroine:
+                break;
+            case EItem.Katana:
+                break;
+            case EItem.Swapper:
+                break;
+        }
+    }
+}
+
 class PacketUseItem : Packet
 {
     private string Sender;
@@ -158,6 +250,8 @@ class PacketUseItem : Packet
         if (HasTarget)
             sync.SerializeStr(ref Target);
     }
+
+    public override string ToString() => string.Format("{0}: Sender {1}, Target {2}, Item {3}", Id.ToString(), Sender, Target ?? "null", Item.ToString());
 }
 
 class PacketShoot : Packet
