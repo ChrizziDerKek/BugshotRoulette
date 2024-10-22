@@ -10,6 +10,7 @@ using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Threading;
 using System.Runtime.InteropServices;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace BSR_Client
 {
@@ -185,6 +186,58 @@ namespace BSR_Client
                                     ResetFlag(EFlags.Shooting);
                             }
                             break;
+                        case EPacket.UsedItem:
+                            {
+                                PacketUsedItem packet = new PacketUsedItem(data);
+                                string user = packet.GetSender();
+                                EItem item = packet.GetItem();
+                                string userstr = user;
+                                if (userstr == You)
+                                    userstr = "You";
+                                Announce(string.Format("{0} used {1}", userstr, item));
+                                bool self = userstr == "You";
+                                switch (item)
+                                {
+                                    case EItem.Handcuffs:
+                                        break;
+                                    case EItem.Saw:
+                                        break;
+                                    case EItem.Magnifying:
+                                        if (self)
+                                            Announce(string.Format("Current Bullet: {0}", packet.GetBullet().ToString()));
+                                        break;
+                                    case EItem.Beer:
+                                        break;
+                                    case EItem.Inverter:
+                                        break;
+                                    case EItem.Medicine:
+                                    case EItem.Cigarettes:
+                                        UpdateHealth(GetHealth(user) + packet.GetHealAmount(), user);
+                                        break;
+                                    case EItem.Phone:
+                                        break;
+                                    case EItem.Adrenaline:
+                                        break;
+                                    case EItem.Magazine:
+                                        break;
+                                    case EItem.Gunpowder:
+                                        break;
+                                    case EItem.Bullet:
+                                        break;
+                                    case EItem.Trashbin:
+                                        break;
+                                    case EItem.Heroine:
+                                        break;
+                                    case EItem.Katana:
+                                        break;
+                                    case EItem.Swapper:
+                                        break;
+                                    case EItem.Hat:
+                                        HideBullets();
+                                        break;
+                                }
+                            }
+                            break;
                     }
                 }
                 finally
@@ -274,7 +327,26 @@ namespace BSR_Client
                 case "Item7":
                 case "Item8":
                     {
-
+                        EItem item = UseItem(action);
+                        switch (item)
+                        {
+                            case EItem.Adrenaline:
+                                SetFlag(EFlags.UsingAdrenaline | EFlags.UsingPlayerItem);
+                                break;
+                            case EItem.Heroine:
+                                SetFlag(EFlags.UsingHeroine | EFlags.UsingPlayerItem);
+                                break;
+                            case EItem.Katana:
+                                SetFlag(EFlags.UsingKatana | EFlags.UsingPlayerItem);
+                                break;
+                            case EItem.Swapper:
+                                SetFlag(EFlags.UsingSwapper | EFlags.UsingPlayerItem);
+                                break;
+                        }
+                        if (IsFlagSet(EFlags.UsingPlayerItem))
+                            SetPlayersInteractable(true);
+                        else
+                            Packet.Send(new PacketUseItem(You, item), Sync);
                     }
                     break;
                 case "Player1":
@@ -288,6 +360,25 @@ namespace BSR_Client
                             SetPlayersInteractable(false);
                             string target = GetPlayerFromSlot(action);
                             Packet.Send(new PacketShoot(You, target, EShotFlags.None), Sync);
+                        }
+                        else if (IsFlagSet(EFlags.UsingPlayerItem))
+                        {
+                            string target = GetPlayerFromSlot(action);
+                            EItem item = EItem.Nothing;
+                            if (IsFlagSet(EFlags.UsingAdrenaline))
+                                item = EItem.Adrenaline;
+                            else if (IsFlagSet(EFlags.UsingHeroine))
+                                item = EItem.Heroine;
+                            else if (IsFlagSet(EFlags.UsingKatana))
+                                item = EItem.Katana;
+                            else if (IsFlagSet(EFlags.UsingSwapper))
+                                item = EItem.Swapper;
+                            Packet.Send(new PacketUseItem(You, item, target), Sync);
+                            ResetFlag(EFlags.UsingPlayerItem);
+                            ResetFlag(EFlags.UsingAdrenaline);
+                            ResetFlag(EFlags.UsingHeroine);
+                            ResetFlag(EFlags.UsingKatana);
+                            ResetFlag(EFlags.UsingSwapper);
                         }
                     }
                     break;

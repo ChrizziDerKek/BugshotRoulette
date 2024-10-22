@@ -19,8 +19,13 @@ namespace BSR_Client
 
     public enum EFlags
     {
-        None,
-        Shooting,
+        None = 0,
+        Shooting = 1 << 0,
+        UsingPlayerItem = 1 << 1,
+        UsingAdrenaline = 1 << 2,
+        UsingHeroine = 1 << 3,
+        UsingKatana = 1 << 4,
+        UsingSwapper = 1 << 5,
     }
 
     public class SettingsItem

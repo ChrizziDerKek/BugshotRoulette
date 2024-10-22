@@ -449,6 +449,41 @@ namespace BSR_Client
 
         public bool IsFlagSet(EFlags flag) => (Flags & flag) != 0;
 
+        public string GetItemType(Button slot)
+        {
+            if (slot == null)
+                return "";
+            if (!(slot.Content is Grid))
+                return "";
+            UIElement text = (slot.Content as Grid).Children[1];
+            if (text == null)
+                return "";
+            if (!(text is TextBlock))
+                return "";
+            return (text as TextBlock).Text;
+        }
+
+        public EItem UseItem(string slot)
+        {
+            Button it = null;
+            foreach (Button itemd in ItemDisplays)
+            {
+                if (itemd.Name == slot)
+                {
+                    it = itemd;
+                    break;
+                }
+            }
+            if (it == null)
+                return EItem.Nothing;
+            if (Enum.TryParse(GetItemType(it), out EItem item))
+            {
+                PutItemInSlot(it, EItem.Nothing);
+                return item;
+            }
+            return EItem.Nothing;
+        }
+
         public void SetMenuState(EMenuState state)
         {
             Playerlist.Visibility = state == EMenuState.Settings ? Visibility.Hidden : Visibility.Visible;
