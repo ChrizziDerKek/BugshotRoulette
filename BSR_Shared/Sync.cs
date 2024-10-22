@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 public enum EPacket
 {
@@ -20,6 +21,7 @@ public enum EPacket
     StartRound,
     PassControl,
     Shoot,
+    UseItem,
 }
 
 public enum EJoinResponse
@@ -121,6 +123,43 @@ public class SettingsData
     }
 }
 
+class PacketUseItem : Packet
+{
+    private string Sender;
+    private EItem Item;
+    private string Target;
+    private bool HasTarget;
+
+    public override EPacket Id => EPacket.UseItem;
+
+    public PacketUseItem(List<byte> data) => Receive(data);
+
+    public PacketUseItem(string sender, EItem item, string target = null)
+    {
+        Sender = sender;
+        Item = item;
+        Target = target;
+        HasTarget = Target != null;
+    }
+
+    public string GetSender() => Sender;
+
+    public string GetTarget() => Target;
+
+    public EItem GetItem() => Item;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeStr(ref Sender);
+        int temp = (int)Item;
+        sync.SerializeInt(ref temp);
+        Item = (EItem)temp;
+        sync.SerializeBool(ref HasTarget);
+        if (HasTarget)
+            sync.SerializeStr(ref Target);
+    }
+}
+
 class PacketShoot : Packet
 {
     private string Sender;
@@ -193,16 +232,18 @@ class PacketStartRound : Packet
     private List<EBullet> Bullets;
     private EItem[] Items;
     private int Lives;
+    private Dictionary<string, List<EItem>> Generated;
 
     public override EPacket Id => EPacket.StartRound;
 
     public PacketStartRound(List<byte> data) => Receive(data);
 
-    public PacketStartRound(List<EBullet> bullets, EItem[] items, int lives = -1)
+    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, int lives = -1)
     {
         Bullets = bullets;
         Items = items;
         Lives = lives;
+        Generated = generated;
     }
 
     public List<EBullet> GetBullets() => Bullets;
@@ -212,6 +253,8 @@ class PacketStartRound : Packet
     public bool ShouldUpdateLives() => Lives != -1;
 
     public int GetLives() => Lives;
+
+    public List<EItem> GetGeneratedItems(string player) => Generated[player];
 
     protected override void Serialize(ISync sync)
     {
@@ -235,6 +278,22 @@ class PacketStartRound : Packet
                 sync.SerializeInt(ref item);
                 Items[i] = (EItem)item;
             }
+            Generated = new Dictionary<string, List<EItem>>();
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                string key = "";
+                sync.SerializeStr(ref key);
+                int items = 0;
+                sync.SerializeInt(ref items);
+                Generated.Add(key, new List<EItem>());
+                for (int j = 0; j < items; j++)
+                {
+                    int item = 0;
+                    sync.SerializeInt(ref item);
+                    Generated[key].Add((EItem)item);
+                }
+            }
         }
         else
         {
@@ -251,6 +310,20 @@ class PacketStartRound : Packet
             {
                 int item = (int)Items[i];
                 sync.SerializeInt(ref item);
+            }
+            count = Generated.Count;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                string key = Generated.ElementAt(i).Key;
+                sync.SerializeStr(ref key);
+                int items = Generated[key].Count;
+                sync.SerializeInt(ref items);
+                for (int j = 0; j < items; j++)
+                {
+                    int item = (int)Generated[key][j];
+                    sync.SerializeInt(ref item);
+                }
             }
         }
     }
@@ -339,13 +412,10 @@ class PacketUpdateSettings : Packet
     public override string ToString() => string.Format("{0}: ...", Id.ToString());
 }
 
-/// <summary>
-/// Forces a client to remove a player locally
-/// </summary>
 class PacketRemoveLocalPlayer : Packet
 {
-    private string Player; //Player to remove
-    private string NewHost; //New Host if the host has to be removed, otherwise null
+    private string Player;
+    private string NewHost;
 
     public override EPacket Id => EPacket.RemoveLocalPlayer;
 
@@ -373,9 +443,6 @@ class PacketRemoveLocalPlayer : Packet
     public override string ToString() => string.Format("{0}: Player {1}, NewHost {2}", Id.ToString(), Player, NewHost);
 }
 
-/// <summary>
-/// Disconnects your client from the server
-/// </summary>
 class PacketDisconnected : Packet
 {
     public override EPacket Id => EPacket.Disconnected;
@@ -395,12 +462,9 @@ class PacketDisconnected : Packet
     public override string ToString() => string.Format("{0}", Id.ToString());
 }
 
-/// <summary>
-/// Forces a client to add a newly joined player locally
-/// </summary>
 class PacketNewPlayer : Packet
 {
-    private string Player; //Player who joined
+    private string Player;
 
     public override EPacket Id => EPacket.NewPlayer;
 
@@ -421,17 +485,12 @@ class PacketNewPlayer : Packet
     public override string ToString() => string.Format("{0}: Player {1}", Id.ToString(), Player);
 }
 
-/// <summary>
-/// Response to a join request
-/// Notifys your client if the join was successful
-/// Sends the session host and a list of players that are in the session
-/// </summary>
 class PacketJoinResponse : Packet
 {
-    private string Session; //Session that your client joined
-    private string Host; //Session host
-    private List<string> Players; //Players in the session
-    private EJoinResponse Response; //Join status
+    private string Session;
+    private string Host;
+    private List<string> Players;
+    private EJoinResponse Response;
 
     public override EPacket Id => EPacket.JoinResponse;
 
@@ -489,17 +548,11 @@ class PacketJoinResponse : Packet
     public override string ToString() => string.Format("{0}: Session {1}, Host {2}, Players {3}, Response {4}", Id.ToString(), Session, Host, Players.Count, Response.ToString());
 }
 
-/// <summary>
-/// Asks the server if you can join a specified session with a specified player name
-/// The server sends you a join response
-/// It also hosts the session if it doesn't exist yet
-/// Otherwise it adds your client to the session and other clients
-/// </summary>
 class PacketJoinRequest : Packet
 {
-    private string Session; //Session to join
-    private string Player; //Player name
-    private bool JoinExistingSession; //False when hosting a session
+    private string Session;
+    private string Player;
+    private bool JoinExistingSession;
 
     public override EPacket Id => EPacket.JoinRequest;
 
@@ -528,9 +581,6 @@ class PacketJoinRequest : Packet
     public override string ToString() => string.Format("{0}: Session {1}, Player {2}", Id.ToString(), Session, Player);
 }
 
-/// <summary>
-/// Interface for serializing variables in packets
-/// </summary>
 public interface ISync
 {
     void SerializeByte(ref byte val);
@@ -541,12 +591,9 @@ public interface ISync
     void SerializePacket(ref EPacket val);
     void SerializeFloat(ref float val);
     void SerializeBool(ref bool val);
-    List<byte> Result { get; } //Unused by SyncReader
+    List<byte> Result { get; }
 }
 
-/// <summary>
-/// Class for reading data from a bytestream
-/// </summary>
 public class SyncReader : ISync
 {
     private readonly List<byte> Data;
@@ -611,9 +658,6 @@ public class SyncReader : ISync
     }
 }
 
-/// <summary>
-/// Class for writing data to a bytestream
-/// </summary>
 public class SyncWriter : ISync
 {
     private readonly List<byte> Data;
@@ -679,164 +723,68 @@ public class SyncWriter : ISync
     }
 }
 
-/// <summary>
-/// Interface for sending and receiving netpackets
-/// </summary>
 public abstract class Packet
 {
-    /// <summary>
-    /// Serializes your data when sending or receiving a packet
-    /// </summary>
-    /// <param name="sync">Reader or writer</param>
     protected abstract void Serialize(ISync sync);
 
-    /// <summary>
-    /// Packet id, will get serialized automatically
-    /// </summary>
     public abstract EPacket Id { get; }
 
-    /// <summary>
-    /// Should be called when receiving this packet
-    /// </summary>
-    /// <param name="data">Bytestream that was received</param>
     protected void Receive(List<byte> data)
     {
         SyncReader reader = new SyncReader(data, 0);
         Serialize(reader);
     }
 
-    /// <summary>
-    /// Gets used by the client to receive a packet
-    /// </summary>
-    /// <param name="data">Bytestream that was received</param>
-    /// <param name="id">Packet id output</param>
-    /// <param name="error">Error code if it failed</param>
-    /// <returns>True on success</returns>
-    public static bool Prepare(List<byte> data, out EPacket id, out int error)
+    public static bool Prepare(List<byte> data, out EPacket id)
     {
-        error = 0;
         id = default;
-        //Check if the packet header is valid
         if (data[0] != '$')
-        {
-            error = 1;
             return false;
-        }
-        //Create a reader for reading the whole packet
         SyncReader reader = new SyncReader(data, 0);
-        //Create a checksum from the received data
-        //(exclude the last 4 bytes because it contains the checksum itself)
-        int checksum = 0x68751223;
-        for (int i = 0; i < data.Count - 4; i++)
-        {
-            byte b = 0;
-            reader.SerializeByte(ref b);
-            checksum ^= b;
-            checksum *= b;
-        }
-        //Read the checksum that came with the packet and convert it to an integer
-        List<byte> cstemp = new List<byte>();
-        for (int i = data.Count - 4; i < data.Count; i++)
-            cstemp.Add(data[i]);
-        int actualchecksum = BitConverter.ToInt32(cstemp.ToArray(), 0);
-        //Check if the checksums matched
-        if (actualchecksum != checksum)
-        {
-            id = (EPacket)checksum;
-            error = actualchecksum;
-            return false;
-        }
-        //Remove the checksum bytes
-        for (int i = 0; i < 4; i++)
-            data.RemoveAt(data.Count - 1);
-        //Create a new reader to read the packet id
-        reader = new SyncReader(data, 0);
         byte dummy = 0;
         reader.SerializeByte(ref dummy);
         reader.SerializePacket(ref id);
-        //Remove the packet header
         for (int i = 0; i < 5; i++)
             data.RemoveAt(0);
         return true;
     }
 
-    /// <summary>
-    /// Sends the packet to the server
-    /// </summary>
-    /// <param name="pack">Packet to send</param>
-    /// <param name="cli">Local client</param>
     public static void Send(Packet pack, ClientWorker cli)
     {
-        //Create a writer and write the packet header to it
         SyncWriter writer = new SyncWriter();
         EPacket temp = pack.Id;
         byte header = (byte)'$';
         writer.SerializeByte(ref header);
         writer.SerializePacket(ref temp);
-        //Serialize the packet
         pack.Serialize(writer);
-        List<byte> result = writer.Result;
-        //Create a checksum and add it to the resulting bytestream
-        int checksum = 0x68751223;
-        foreach (byte r in result)
-        {
-            checksum ^= r;
-            checksum *= r;
-        }
-        foreach (byte b in BitConverter.GetBytes(checksum))
-            result.Add(b);
-        //Send the bytestream to the server
-        cli.Send(result);
+        cli.Send(writer.Result);
     }
 }
 
-/// <summary>
-/// Client for sending and receiving packets
-/// </summary>
 public class ClientWorker : IDisposable
 {
-    /// <summary>
-    /// Event callback for received packets
-    /// </summary>
-    /// <param name="sender">Client who sent the packet on server or current client on client</param>
-    /// <param name="id">Packet id</param>
-    /// <param name="data">Raw packet data</param>
     public delegate void PacketReceived(ClientWorker sender, EPacket id, List<byte> data);
     public event PacketReceived OnPacketReceived;
 
-    /// <summary>
-    /// Event callback for a client that was disconnected
-    /// Note: Only used by server to destroy clients
-    /// </summary>
-    /// <param name="sender">Client who disconnected</param>
     public delegate void Disconnected(ClientWorker sender);
     public event Disconnected OnDisconnected;
 
-    private readonly TcpClient Socket; //Tcp client
-    private readonly Stream Stream; //Stream for io actions
-    private readonly Mutex Lock; //Mutex to avoid invalid packets
-    private readonly bool IsClient; //False if the client is in the server, otherwise true
-    private string Player; //Player name, only used by the server to distinguish clients
-    private string Session; //Session of the client, same as above
+    private readonly TcpClient Socket;
+    private readonly Stream Stream;
+    private readonly Mutex Lock;
+    private readonly bool IsClient;
+    private string Player;
+    private string Session;
 
-    /// <summary>
-    /// Creates a server copy of an existing client
-    /// </summary>
-    /// <param name="client">Existing client</param>
     public ClientWorker(TcpClient client)
     {
         Socket = client;
         Stream = Socket.GetStream();
-        Lock = new Mutex();
+        Lock = null;
         IsClient = false;
         Player = null;
     }
 
-    /// <summary>
-    /// Creates a client that connects itself to the server
-    /// </summary>
-    /// <param name="ip">Server ip</param>
-    /// <param name="port">Server port</param>
     public ClientWorker(string ip, int port)
     {
         Socket = new TcpClient(ip, port);
@@ -846,11 +794,6 @@ public class ClientWorker : IDisposable
         Player = null;
     }
 
-    /// <summary>
-    /// Assigns player data to the client in the server
-    /// </summary>
-    /// <param name="player">Player name</param>
-    /// <param name="session">Session</param>
     public void AssignData(string player, string session)
     {
         Player = player;
@@ -867,25 +810,15 @@ public class ClientWorker : IDisposable
 
     public void Start() => Task.Run(Update);
 
-    /// <summary>
-    /// Sends raw binary data to the server or the client
-    /// </summary>
-    /// <param name="data">Data to send</param>
     public void Send(List<byte> data)
     {
-        Lock.WaitOne();
+        Lock?.WaitOne();
         Stream.Write(data.ToArray(), 0, data.Count);
-        Lock.ReleaseMutex();
+        Lock?.ReleaseMutex();
     }
 
-    /// <summary>
-    /// Destroys the client and disconnects it from the server
-    /// </summary>
     public void Dispose() => Socket?.Close();
 
-    /// <summary>
-    /// Updates the client to receive packets
-    /// </summary>
     private void Update()
     {
         byte[] buffer = new byte[0x1000];
@@ -893,32 +826,21 @@ public class ClientWorker : IDisposable
         {
             while (true)
             {
-                //Will halt the thread until we received something
                 int received = Stream.Read(buffer, 0, buffer.Length);
-                //Break the loop if we didn't receive anything usable
-                if (received <= 0)
+                if (received == 0)
                     break;
-                //Migrate the received data to an array with its actual size
                 byte[] packet = new byte[received];
                 Array.Copy(buffer, 0, packet, 0, received);
-                //Convert it to a list and prepare the packet
                 List<byte> actualPacket = packet.ToList();
-                if (!Packet.Prepare(actualPacket, out EPacket id, out int error))
-                {
-                    //Check for errors
-                    if (error != 1)
-                        Console.WriteLine("Ignored Packet because of Checksum mismatch ({0} != {1})", (int)id, error);
-                    else
-                        Console.WriteLine("Ignored Packet because of missing header");
-                }
-                else OnPacketReceived?.Invoke(this, id, actualPacket); //Receive the packet and handle it
+                if (!Packet.Prepare(actualPacket, out EPacket id))
+                    Console.WriteLine("Ignored invalid Packet");
+                else
+                    OnPacketReceived?.Invoke(this, id, actualPacket);
             }
         }
         catch (IOException) { }
         catch (ObjectDisposedException) { }
-        //Call the disconnect event for proper cleaning
         OnDisconnected?.Invoke(this);
-        //If the client isn't in the server, we exit the program
         if (IsClient)
         {
             Dispose();
