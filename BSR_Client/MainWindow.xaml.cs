@@ -198,33 +198,55 @@ namespace BSR_Client
                                 string userstr = user;
                                 if (userstr == You)
                                     userstr = "You";
-                                Announce(string.Format("{0} used {1}", userstr, item));
+                                Announce(string.Format("{0} used: {1}", userstr, item));
                                 bool self = userstr == "You";
                                 switch (item)
                                 {
                                     case EItem.Handcuffs:
                                         break;
-                                    case EItem.Saw:
-                                        break;
                                     case EItem.Magnifying:
-                                        if (self)
+                                        {
+                                            if (!self)
+                                                return;
                                             Announce(string.Format("Current Bullet: {0}", packet.GetBullet().ToString()));
+                                        }
                                         break;
                                     case EItem.Beer:
-                                        break;
-                                    case EItem.Inverter:
+                                        {
+                                            Announce(string.Format("Racked Bullet: {0}", packet.GetBullet().ToString()));
+                                            HideBullet(packet.GetBullet(), packet.IsInverted());
+                                        }
                                         break;
                                     case EItem.Medicine:
                                     case EItem.Cigarettes:
                                         UpdateHealth(GetHealth(user) + packet.GetHealAmount(), user);
                                         break;
                                     case EItem.Phone:
+                                        {
+                                            string[] numbers = new string[]
+                                            {
+                                                "First",
+                                                "Second",
+                                                "Third",
+                                                "Fourth",
+                                                "Fifth",
+                                                "Sixth",
+                                                "Seventh",
+                                                "Eighth"
+                                            };
+                                            int index = packet.GetBulletIndex();
+                                            EBullet bullet = packet.GetBullet();
+                                            if (index <= 0 || index >= numbers.Length || bullet == EBullet.Undefined)
+                                            {
+                                                Announce("Nothing to see");
+                                                return;
+                                            }
+                                            Announce(string.Format("{0} Bullet: {1}", numbers[index], bullet.ToString()));
+                                        }
                                         break;
                                     case EItem.Adrenaline:
                                         break;
                                     case EItem.Magazine:
-                                        break;
-                                    case EItem.Gunpowder:
                                         break;
                                     case EItem.Bullet:
                                         break;
@@ -363,7 +385,7 @@ namespace BSR_Client
                         {
                             SetPlayersInteractable(false);
                             string target = GetPlayerFromSlot(action);
-                            Packet.Send(new PacketShoot(You, target, EShotFlags.None), Sync);
+                            Packet.Send(new PacketShoot(You, target), Sync);
                         }
                         else if (IsFlagSet(EFlags.UsingPlayerItem))
                         {

@@ -33,6 +33,7 @@ namespace Server
         private int StartLives;
         private bool CanGoAgain;
         private Dictionary<string, List<EItem>> LastGeneratedItems;
+        private EShotFlags NextBulletFlags;
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -74,7 +75,20 @@ namespace Server
             CanGoAgain = false;
             PlayerHealth = new Dictionary<string, int>();
             LastGeneratedItems = new Dictionary<string, List<EItem>>();
+            NextBulletFlags = EShotFlags.None;
         }
+
+        public void InvertBullet() => ActualBullets[0] = ActualBullets[0] == EBullet.Live ? EBullet.Blank : EBullet.Live;
+
+        public bool BulletHasFlag(EShotFlags flag) => (NextBulletFlags & flag) != 0;
+
+        public void SetBulletFlag(EShotFlags flag) => NextBulletFlags |= flag;
+
+        public void ResetBulletFlag(EShotFlags flag) => NextBulletFlags &= ~flag;
+
+        public EShotFlags GetBulletFlags() => NextBulletFlags;
+
+        public void ResetBulletFlags() => NextBulletFlags = EShotFlags.None;
 
         public Dictionary<string, List<EItem>> GetLastGeneratedItems() => LastGeneratedItems;
 
@@ -485,6 +499,7 @@ namespace Server
                                     }
                                     break;
                                 case EItem.Saw:
+                                    session.SetBulletFlag(EShotFlags.SawedOff);
                                     break;
                                 case EItem.Magnifying:
                                     {
@@ -493,8 +508,28 @@ namespace Server
                                     }
                                     break;
                                 case EItem.Beer:
+                                    {
+                                        EBullet bullet = session.PopBullet();
+                                        bool inverted = session.BulletHasFlag(EShotFlags.Inverted);
+                                        session.ResetBulletFlags();
+                                        Broadcast(new PacketUsedItem(user, bullet, inverted), session, "Item usage");
+                                        Thread.Sleep(100);
+                                        if (session.GetBulletCount() == 0)
+                                        {
+                                            session.RoundStart(false);
+                                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false), session, "New Round Start");
+                                        }
+                                    }
                                     break;
                                 case EItem.Inverter:
+                                    {
+                                        if (session.BulletHasFlag(EShotFlags.Inverted))
+                                            session.ResetBulletFlag(EShotFlags.Inverted);
+                                        else
+                                            session.SetBulletFlag(EShotFlags.Inverted);
+                                        session.InvertBullet();
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Medicine:
                                     {
@@ -507,12 +542,21 @@ namespace Server
                                     }
                                     break;
                                 case EItem.Phone:
+                                    {
+                                        List<EBullet> bullets = session.GetBullets(false);
+                                        int index = -1;
+                                        if (bullets.Count > 1)
+                                            index = session.GetRNG().Next(1, bullets.Count);
+                                        EBullet bullet = index == -1 ? EBullet.Undefined : bullets[index];
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, index), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Adrenaline:
                                     break;
                                 case EItem.Magazine:
                                     break;
                                 case EItem.Gunpowder:
+                                    session.SetBulletFlag(EShotFlags.Gunpowdered);
                                     break;
                                 case EItem.Bullet:
                                     break;
@@ -525,9 +569,7 @@ namespace Server
                                 case EItem.Swapper:
                                     break;
                                 case EItem.Hat:
-                                    {
-                                        Broadcast(new PacketUsedItem(user, EItem.Hat), session, "Item usage");
-                                    }
+                                    Broadcast(new PacketUsedItem(user, item), session, "Item usage");
                                     break;
                             }
                         }
@@ -548,6 +590,11 @@ namespace Server
                                 Console.WriteLine("Rejected because player isn't in control");
                                 return;
                             }
+                            if (packet.GetFlags() != EShotFlags.None)
+                            {
+                                Console.WriteLine("Rejected because of invalid bullet flags");
+                                return;
+                            }
                             string target = packet.GetTarget();
                             EBullet type = session.PopBullet();
                             if (actualsender == target && type == EBullet.Blank)
@@ -557,9 +604,9 @@ namespace Server
                             if (type == EBullet.Live)
                             {
                                 damage = 1;
-                                if (packet.HasFlag(EShotFlags.SawedOff))
+                                if (session.BulletHasFlag(EShotFlags.SawedOff))
                                     damage++;
-                                if (packet.HasFlag(EShotFlags.Gunpowdered))
+                                if (session.BulletHasFlag(EShotFlags.Gunpowdered))
                                 {
                                     damage += 2;
                                     if (session.GetRNG().Next(0, 2) == 0)
@@ -575,15 +622,17 @@ namespace Server
                             if (health < 0)
                                 health = 0;
                             session.SetHealth(target, health);
-                            EShotFlags flags = packet.GetFlags();
+                            EShotFlags flags = session.GetBulletFlags();
                             if (backfired)
                                 flags |= EShotFlags.GunpowderBackfired;
+                            if (session.BulletHasFlag(EShotFlags.Inverted))
+                                flags |= EShotFlags.Inverted;
+                            session.ResetBulletFlags();
                             Broadcast(new PacketShoot(actualsender, target, flags, type), session, "Shooting");
                             if (session.GetBulletCount() == 0)
                             {
                                 session.RoundStart(false);
-                                bool intense = session.GetRNG().Next(0, 2) == 0;
-                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), intense), session, "New Round Start");
+                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false), session, "New Round Start");
                             }
                             Thread.Sleep(100);
                             if (session.ShouldSwitchPlayer())

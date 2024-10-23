@@ -130,6 +130,8 @@ class PacketUsedItem : Packet
     private EItem Item;
     private EBullet Bullet;
     private int Healed;
+    private int Index;
+    private bool Inverted;
 
     public override EPacket Id => EPacket.UsedItem;
 
@@ -141,6 +143,8 @@ class PacketUsedItem : Packet
         Item = item;
         Bullet = EBullet.Undefined;
         Healed = 0;
+        Index = 0;
+        Inverted = false;
     }
 
     public PacketUsedItem(string sender, int healed, bool cigs)
@@ -149,13 +153,28 @@ class PacketUsedItem : Packet
         Item = cigs ? EItem.Cigarettes : EItem.Medicine;
         Bullet = EBullet.Undefined;
         Healed = healed;
+        Index = 0;
+        Inverted = false;
     }
 
-    public PacketUsedItem(string sender, EBullet bullet)
+    public PacketUsedItem(string sender, EBullet bullet, int index = 0)
     {
         Sender = sender;
-        Item = EItem.Magnifying;
+        Item = index == 0 ? EItem.Magnifying : EItem.Phone;
         Bullet = bullet;
+        Healed = 0;
+        Index = index;
+        Inverted = false;
+    }
+
+    public PacketUsedItem(string sender, EBullet bullet, bool inverted)
+    {
+        Sender = sender;
+        Item = EItem.Beer;
+        Bullet = bullet;
+        Healed = 0;
+        Index = 0;
+        Inverted = inverted;
     }
 
     public string GetSender() => Sender;
@@ -165,6 +184,10 @@ class PacketUsedItem : Packet
     public EBullet GetBullet() => Bullet;
 
     public int GetHealAmount() => Healed;
+
+    public int GetBulletIndex() => Index;
+
+    public bool IsInverted() => Inverted;
 
     protected override void Serialize(ISync sync)
     {
@@ -186,6 +209,12 @@ class PacketUsedItem : Packet
                 }
                 break;
             case EItem.Beer:
+                {
+                    int bullet = (int)Bullet;
+                    sync.SerializeInt(ref bullet);
+                    Bullet = (EBullet)bullet;
+                    sync.SerializeBool(ref Inverted);
+                }
                 break;
             case EItem.Inverter:
                 break;
@@ -194,6 +223,12 @@ class PacketUsedItem : Packet
                 sync.SerializeInt(ref Healed);
                 break;
             case EItem.Phone:
+                {
+                    sync.SerializeInt(ref Index);
+                    int bullet = (int)Bullet;
+                    sync.SerializeInt(ref bullet);
+                    Bullet = (EBullet)bullet;
+                }
                 break;
             case EItem.Adrenaline:
                 break;
@@ -265,7 +300,7 @@ class PacketShoot : Packet
 
     public PacketShoot(List<byte> data) => Receive(data);
 
-    public PacketShoot(string sender, string who, EShotFlags flags, EBullet type = EBullet.Undefined)
+    public PacketShoot(string sender, string who, EShotFlags flags = EShotFlags.None, EBullet type = EBullet.Undefined)
     {
         Sender = sender;
         Who = who;
