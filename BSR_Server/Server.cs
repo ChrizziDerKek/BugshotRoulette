@@ -34,6 +34,7 @@ namespace Server
         private bool CanGoAgain;
         private Dictionary<string, List<EItem>> LastGeneratedItems;
         private EShotFlags NextBulletFlags;
+        private EItem LastUsedItem;
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -76,7 +77,12 @@ namespace Server
             PlayerHealth = new Dictionary<string, int>();
             LastGeneratedItems = new Dictionary<string, List<EItem>>();
             NextBulletFlags = EShotFlags.None;
+            LastUsedItem = EItem.Nothing;
         }
+
+        public void SetLastUsedItem(EItem item) => LastUsedItem = item;
+
+        public EItem GetLastUsedItem() => LastUsedItem;
 
         public void InvertBullet() => ActualBullets[0] = ActualBullets[0] == EBullet.Live ? EBullet.Blank : EBullet.Live;
 
@@ -88,7 +94,21 @@ namespace Server
 
         public EShotFlags GetBulletFlags() => NextBulletFlags;
 
-        public void ResetBulletFlags() => NextBulletFlags = EShotFlags.None;
+        public void ResetBulletFlags(bool everything = false)
+        {
+            if (everything)
+            {
+                NextBulletFlags = EShotFlags.None;
+                return;
+            }
+            bool again = BulletHasFlag(EShotFlags.AgainBecauseCuffed);
+            bool used = BulletHasFlag(EShotFlags.HandcuffsJustUsed);
+            NextBulletFlags = EShotFlags.None;
+            if (again)
+                SetBulletFlag(EShotFlags.AgainBecauseCuffed);
+            if (used)
+                SetBulletFlag(EShotFlags.HandcuffsJustUsed);
+        }
 
         public Dictionary<string, List<EItem>> GetLastGeneratedItems() => LastGeneratedItems;
 
@@ -125,7 +145,7 @@ namespace Server
             return true;
         }
 
-        public void SetAgain(bool again) => CanGoAgain = again;
+        public void SetAgain(bool again = true) => CanGoAgain = again;
 
         public void AddPlayer(string player)
         {
@@ -172,17 +192,22 @@ namespace Server
 
         public int SwitchPlayer()
         {
+            SetLastUsedItem(EItem.Nothing);
+            ResetBulletFlags(true);
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
             return CurrentPlayer;
         }
 
-        public void RoundStart(bool initial)
+        public void RoundStart(bool initial = false, bool noitems = false)
         {
             int nitems = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
             GenerateBullets();
-            LastGeneratedItems.Clear();
-            foreach (string player in Players)
-                GenerateItems(player, nitems, false);
+            if (!noitems)
+            {
+                LastGeneratedItems.Clear();
+                foreach (string player in Players)
+                    GenerateItems(player, nitems, false, false);
+            }
             if (initial)
             {
                 GenerateLives();
@@ -194,6 +219,13 @@ namespace Server
                         PlayerHealth[player] = StartLives;
                 }
             }
+        }
+
+        public void PushBullet()
+        {
+            bool live = RNG.Next(0, 2) == 0;
+            ActualBullets.Add(live ? EBullet.Live : EBullet.Blank);
+            DisplayedBullets.Add(EBullet.Undefined);
         }
 
         private void GenerateLives() => StartLives = RNG.Next(Settings.MinHealth, Settings.MaxHealth + 1);
@@ -243,10 +275,11 @@ namespace Server
             ShuffleBullets();
         }
 
-        private void GenerateItems(string player, int count, bool bot)
+        public EItem GenerateItems(string player, int count, bool bot, bool bypasslimits)
         {
+            EItem lastgenerated = EItem.Nothing;
             if (Settings.NoItems)
-                return;
+                return lastgenerated;
             for (int i = 0; i < count; i++)
             {
                 int start = (int)EItem.Nothing + 1;
@@ -254,19 +287,33 @@ namespace Server
                 if (Settings.OriginalItemsOnly || bot)
                     end = (int)EItem.Adrenaline + 1;
                 int attempts = 0;
+                bool skipped;
                 EItem item;
                 do
                 {
+                    skipped = false;
                     if (attempts++ > 100)
                     {
                         item = EItem.Nothing;
                         break;
                     }
                     item = (EItem)RNG.Next(start, end);
+                    if (bypasslimits && (item == EItem.Trashbin || item == GetLastUsedItem()))
+                    {
+                        attempts--;
+                        skipped = true;
+                        continue;
+                    }
+                    if (Settings.EnabledItems.TryGetValue(item, out bool enabled) && !enabled)
+                    {
+                        attempts--;
+                        skipped = true;
+                        continue;
+                    }
                     if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
                         item = (EItem)RNG.Next(start, end);
                 }
-                while (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(player, item) >= limit);
+                while (skipped || (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(player, item) >= limit && !bypasslimits));
                 if (item == EItem.Nothing)
                     break;
                 if (!PlayerItems.ContainsKey(player))
@@ -275,18 +322,25 @@ namespace Server
                     for (int j = 0; j < 8; j++)
                         PlayerItems[player][j] = EItem.Nothing;
                 }
+                bool foundPlace = false;
                 for (int j = 0; j < 8; j++)
                 {
                     if (PlayerItems[player][j] == EItem.Nothing)
                     {
                         PlayerItems[player][j] = item;
+                        foundPlace = true;
                         break;
                     }
                 }
-                if (!LastGeneratedItems.ContainsKey(player))
-                    LastGeneratedItems.Add(player, new List<EItem>());
-                LastGeneratedItems[player].Add(item);
+                if (foundPlace)
+                {
+                    if (!LastGeneratedItems.ContainsKey(player))
+                        LastGeneratedItems.Add(player, new List<EItem>());
+                    LastGeneratedItems[player].Add(item);
+                    lastgenerated = item;
+                }
             }
+            return lastgenerated;
         }
 
         public List<EBullet> GetBullets(bool display) => display ? DisplayedBullets : ActualBullets;
@@ -315,13 +369,13 @@ namespace Server
             }
         }
 
-        private int GetItemCount(string player, EItem item)
+        public int GetItemCount(string player, EItem item = EItem.Count)
         {
             if (!PlayerItems.TryGetValue(player, out EItem[] items))
                 return 0;
             int count = 0;
             foreach (EItem it in items)
-                if (it == item)
+                if (item == EItem.Count || it == item)
                     count++;
             return count;
         }
@@ -487,9 +541,26 @@ namespace Server
                                 return;
                             }
                             session.RemoveItem(user, item);
+                            EItem last = session.GetLastUsedItem();
+                            session.SetLastUsedItem(item);
+                            if (last == EItem.Trashbin)
+                            {
+                                EItem replacement = session.GenerateItems(user, 1, false, true);
+                                Broadcast(new PacketUsedItem(user, item, true, replacement), session, "Item trashed");
+                                return;
+                            }
                             switch (item)
                             {
                                 case EItem.Handcuffs:
+                                    {
+                                        if (session.BulletHasFlag(EShotFlags.HandcuffsJustUsed))
+                                        {
+                                            Console.WriteLine("Rejected because handcuffs cannot be stacked");
+                                            return;
+                                        }
+                                        session.SetBulletFlag(EShotFlags.AgainBecauseCuffed);
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Cigarettes:
                                     {
@@ -499,7 +570,10 @@ namespace Server
                                     }
                                     break;
                                 case EItem.Saw:
-                                    session.SetBulletFlag(EShotFlags.SawedOff);
+                                    {
+                                        session.SetBulletFlag(EShotFlags.SawedOff);
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Magnifying:
                                     {
@@ -516,8 +590,8 @@ namespace Server
                                         Thread.Sleep(100);
                                         if (session.GetBulletCount() == 0)
                                         {
-                                            session.RoundStart(false);
-                                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false), session, "New Round Start");
+                                            session.RoundStart();
+                                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
                                         }
                                     }
                                     break;
@@ -554,13 +628,31 @@ namespace Server
                                 case EItem.Adrenaline:
                                     break;
                                 case EItem.Magazine:
+                                    {
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        Thread.Sleep(100);
+                                        session.RoundStart(false, true);
+                                        Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true), session, "New Round Start");
+                                    }
                                     break;
                                 case EItem.Gunpowder:
-                                    session.SetBulletFlag(EShotFlags.Gunpowdered);
+                                    {
+                                        session.SetBulletFlag(EShotFlags.Gunpowdered);
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Bullet:
+                                    {
+                                        session.PushBullet();
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Trashbin:
+                                    {
+                                        if (session.GetItemCount(user) <= 0)
+                                            session.SetLastUsedItem(last);
+                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Heroine:
                                     break;
@@ -598,7 +690,7 @@ namespace Server
                             string target = packet.GetTarget();
                             EBullet type = session.PopBullet();
                             if (actualsender == target && type == EBullet.Blank)
-                                session.SetAgain(true);
+                                session.SetAgain();
                             bool backfired = false;
                             int damage = 0;
                             if (type == EBullet.Live)
@@ -627,16 +719,24 @@ namespace Server
                                 flags |= EShotFlags.GunpowderBackfired;
                             if (session.BulletHasFlag(EShotFlags.Inverted))
                                 flags |= EShotFlags.Inverted;
+                            bool cuffed = session.BulletHasFlag(EShotFlags.AgainBecauseCuffed);
                             session.ResetBulletFlags();
                             Broadcast(new PacketShoot(actualsender, target, flags, type), session, "Shooting");
                             if (session.GetBulletCount() == 0)
                             {
-                                session.RoundStart(false);
-                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false), session, "New Round Start");
+                                session.RoundStart();
+                                Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
                             }
                             Thread.Sleep(100);
                             if (session.ShouldSwitchPlayer())
-                                session.SwitchPlayer();
+                            {
+                                if (cuffed)
+                                {
+                                    session.ResetBulletFlag(EShotFlags.AgainBecauseCuffed);
+                                    session.SetBulletFlag(EShotFlags.HandcuffsJustUsed);
+                                }
+                                else session.SwitchPlayer();
+                            }
                             string nextplayer = session.GetCurrentPlayer();
                             Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
                         }
@@ -658,7 +758,7 @@ namespace Server
                             int health = session.GetMaxHealth();
                             string firstplayer = session.GetCurrentPlayer();
                             bool intense = session.GetRNG().Next(0, 2) == 0;
-                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), intense, health), session, "Round Start");
+                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false, intense, health), session, "Round Start");
                             Broadcast(new PacketPassControl(firstplayer), session, "Pass Control");
                         }
                         break;

@@ -74,6 +74,8 @@ public enum EShotFlags
     Gunpowdered = 1 << 1,
     Inverted = 1 << 2,
     GunpowderBackfired = 1 << 3,
+    AgainBecauseCuffed = 1 << 4,
+    HandcuffsJustUsed = 1 << 5,
 }
 
 public class SettingsData
@@ -134,12 +136,14 @@ class PacketUsedItem : Packet
     private int Healed;
     private int Index;
     private bool Inverted;
+    private bool Trashed;
+    private EItem NewItem;
 
     public override EPacket Id => EPacket.UsedItem;
 
     public PacketUsedItem(List<byte> data) => Receive(data);
 
-    public PacketUsedItem(string sender, EItem item)
+    public PacketUsedItem(string sender, EItem item, bool trashed = false, EItem newitem = EItem.Nothing)
     {
         Sender = sender;
         Item = item;
@@ -147,6 +151,8 @@ class PacketUsedItem : Packet
         Healed = 0;
         Index = 0;
         Inverted = false;
+        Trashed = trashed;
+        NewItem = newitem;
     }
 
     public PacketUsedItem(string sender, int healed, bool cigs)
@@ -157,6 +163,8 @@ class PacketUsedItem : Packet
         Healed = healed;
         Index = 0;
         Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
     }
 
     public PacketUsedItem(string sender, EBullet bullet, int index = 0)
@@ -167,6 +175,8 @@ class PacketUsedItem : Packet
         Healed = 0;
         Index = index;
         Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
     }
 
     public PacketUsedItem(string sender, EBullet bullet, bool inverted)
@@ -177,6 +187,8 @@ class PacketUsedItem : Packet
         Healed = 0;
         Index = 0;
         Inverted = inverted;
+        Trashed = false;
+        NewItem = EItem.Nothing;
     }
 
     public string GetSender() => Sender;
@@ -191,12 +203,23 @@ class PacketUsedItem : Packet
 
     public bool IsInverted() => Inverted;
 
+    public bool WasTrashed() => Trashed;
+
+    public EItem GetReplacementItem() => NewItem;
+
     protected override void Serialize(ISync sync)
     {
         int item = (int)Item;
         sync.SerializeInt(ref item);
         Item = (EItem)item;
         sync.SerializeStr(ref Sender);
+        sync.SerializeBool(ref Trashed);
+        if (Trashed)
+        {
+            item = (int)NewItem;
+            sync.SerializeInt(ref item);
+            NewItem = (EItem)item;
+        }
         switch (Item)
         {
             case EItem.Handcuffs:
@@ -258,6 +281,7 @@ class PacketUseItem : Packet
     private EItem Item;
     private string Target;
     private bool HasTarget;
+    private bool Trashed;
 
     public override EPacket Id => EPacket.UseItem;
 
@@ -269,6 +293,16 @@ class PacketUseItem : Packet
         Item = item;
         Target = target;
         HasTarget = Target != null;
+        Trashed = false;
+    }
+
+    public PacketUseItem(string sender, EItem item, bool trashed)
+    {
+        Sender = sender;
+        Item = item;
+        Target = null;
+        HasTarget = false;
+        Trashed = trashed;
     }
 
     public string GetSender() => Sender;
@@ -277,6 +311,8 @@ class PacketUseItem : Packet
 
     public EItem GetItem() => Item;
 
+    public bool WasTrashed() => Trashed;
+
     protected override void Serialize(ISync sync)
     {
         sync.SerializeStr(ref Sender);
@@ -284,6 +320,7 @@ class PacketUseItem : Packet
         sync.SerializeInt(ref temp);
         Item = (EItem)temp;
         sync.SerializeBool(ref HasTarget);
+        sync.SerializeBool(ref Trashed);
         if (HasTarget)
             sync.SerializeStr(ref Target);
     }
@@ -365,18 +402,20 @@ class PacketStartRound : Packet
     private int Lives;
     private Dictionary<string, List<EItem>> Generated;
     private bool Intense;
+    private bool NoItems;
 
     public override EPacket Id => EPacket.StartRound;
 
     public PacketStartRound(List<byte> data) => Receive(data);
 
-    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, bool intense, int lives = -1)
+    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, bool noitems = false, bool intense = false, int lives = -1)
     {
         Bullets = bullets;
         Items = items;
         Lives = lives;
         Generated = generated;
         Intense = intense;
+        NoItems = noitems;
     }
 
     public List<EBullet> GetBullets() => Bullets;
@@ -391,10 +430,13 @@ class PacketStartRound : Packet
 
     public bool ShouldPlayIntenseTheme() => Intense;
 
+    public bool NoItemsGenerated() => NoItems;
+
     protected override void Serialize(ISync sync)
     {
         sync.SerializeInt(ref Lives);
         sync.SerializeBool(ref Intense);
+        sync.SerializeBool(ref NoItems);
         if (Bullets == null)
         {
             Bullets = new List<EBullet>();
@@ -406,28 +448,31 @@ class PacketStartRound : Packet
                 sync.SerializeInt(ref bullet);
                 Bullets.Add((EBullet)bullet);
             }
-            sync.SerializeInt(ref count);
-            Items = new EItem[count];
-            for (int i = 0; i < count; i++)
+            if (!NoItems)
             {
-                int item = 0;
-                sync.SerializeInt(ref item);
-                Items[i] = (EItem)item;
-            }
-            Generated = new Dictionary<string, List<EItem>>();
-            sync.SerializeInt(ref count);
-            for (int i = 0; i < count; i++)
-            {
-                string key = "";
-                sync.SerializeStr(ref key);
-                int items = 0;
-                sync.SerializeInt(ref items);
-                Generated.Add(key, new List<EItem>());
-                for (int j = 0; j < items; j++)
+                sync.SerializeInt(ref count);
+                Items = new EItem[count];
+                for (int i = 0; i < count; i++)
                 {
                     int item = 0;
                     sync.SerializeInt(ref item);
-                    Generated[key].Add((EItem)item);
+                    Items[i] = (EItem)item;
+                }
+                Generated = new Dictionary<string, List<EItem>>();
+                sync.SerializeInt(ref count);
+                for (int i = 0; i < count; i++)
+                {
+                    string key = "";
+                    sync.SerializeStr(ref key);
+                    int items = 0;
+                    sync.SerializeInt(ref items);
+                    Generated.Add(key, new List<EItem>());
+                    for (int j = 0; j < items; j++)
+                    {
+                        int item = 0;
+                        sync.SerializeInt(ref item);
+                        Generated[key].Add((EItem)item);
+                    }
                 }
             }
         }
@@ -440,25 +485,28 @@ class PacketStartRound : Packet
                 int bullet = (int)Bullets[i];
                 sync.SerializeInt(ref bullet);
             }
-            count = Items.Length;
-            sync.SerializeInt(ref count);
-            for (int i = 0; i < count; i++)
+            if (!NoItems)
             {
-                int item = (int)Items[i];
-                sync.SerializeInt(ref item);
-            }
-            count = Generated.Count;
-            sync.SerializeInt(ref count);
-            for (int i = 0; i < count; i++)
-            {
-                string key = Generated.ElementAt(i).Key;
-                sync.SerializeStr(ref key);
-                int items = Generated[key].Count;
-                sync.SerializeInt(ref items);
-                for (int j = 0; j < items; j++)
+                count = Items.Length;
+                sync.SerializeInt(ref count);
+                for (int i = 0; i < count; i++)
                 {
-                    int item = (int)Generated[key][j];
+                    int item = (int)Items[i];
                     sync.SerializeInt(ref item);
+                }
+                count = Generated.Count;
+                sync.SerializeInt(ref count);
+                for (int i = 0; i < count; i++)
+                {
+                    string key = Generated.ElementAt(i).Key;
+                    sync.SerializeStr(ref key);
+                    int items = Generated[key].Count;
+                    sync.SerializeInt(ref items);
+                    for (int j = 0; j < items; j++)
+                    {
+                        int item = (int)Generated[key][j];
+                        sync.SerializeInt(ref item);
+                    }
                 }
             }
         }

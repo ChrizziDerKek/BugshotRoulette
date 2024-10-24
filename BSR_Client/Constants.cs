@@ -37,6 +37,8 @@ namespace BSR_Client
         UsingHeroine = 1 << 3,
         UsingKatana = 1 << 4,
         UsingSwapper = 1 << 5,
+        NextItemTrashed = 1 << 6,
+        HandcuffUsageBlocked = 1 << 7,
     }
 
     public class SettingsItem

@@ -106,22 +106,27 @@ namespace BSR_Client
                         case EPacket.StartRound:
                             {
                                 PacketStartRound packet = new PacketStartRound(data);
+                                ResetFlag(EFlags.NextItemTrashed);
                                 Console.WriteLine(packet.ToString());
                                 List<EBullet> bullets = packet.GetBullets();
+                                bool noitems = packet.NoItemsGenerated();
                                 Announce(string.Format("{0} lives, {1} blanks", GetBulletCount(bullets, EBullet.Live), GetBulletCount(bullets, EBullet.Blank)));
                                 ShowBullets(bullets.ToArray());
-                                OverrideItems(packet.GetItems());
-                                foreach (string player in Players)
+                                if (!noitems)
                                 {
-                                    List<EItem> items = packet.GetGeneratedItems(player);
-                                    string playername = player;
-                                    if (playername == You)
-                                        playername = "You";
-                                    string itemlist = "";
-                                    foreach (EItem item in items)
-                                        itemlist += ", " + item.ToString();
-                                    itemlist = itemlist.Substring(2);
-                                    Announce(string.Format("{0} got {1}", playername, itemlist));
+                                    OverrideItems(packet.GetItems());
+                                    foreach (string player in Players)
+                                    {
+                                        List<EItem> items = packet.GetGeneratedItems(player);
+                                        string playername = player;
+                                        if (playername == You)
+                                            playername = "You";
+                                        string itemlist = "";
+                                        foreach (EItem item in items)
+                                            itemlist += ", " + item.ToString();
+                                        itemlist = itemlist.Substring(2);
+                                        Announce(string.Format("{0} got {1}", playername, itemlist));
+                                    }
                                 }
                                 bool initial = packet.ShouldUpdateLives();
                                 if (initial)
@@ -139,6 +144,7 @@ namespace BSR_Client
                                 Console.WriteLine(packet.ToString());
                                 if (packet.GetTarget() != You)
                                 {
+                                    ResetFlag(EFlags.HandcuffUsageBlocked);
                                     Announce(packet.GetTarget() + "'s turn");
                                     return;
                                 }
@@ -196,15 +202,31 @@ namespace BSR_Client
                                 PacketUsedItem packet = new PacketUsedItem(data);
                                 string user = packet.GetSender();
                                 EItem item = packet.GetItem();
-                                Sound.PlayItemSfx(item);
+                                bool trashed = packet.WasTrashed();
+                                if (!trashed)
+                                    Sound.PlayItemSfx(item);
                                 string userstr = user;
                                 if (userstr == You)
                                     userstr = "You";
-                                Announce(string.Format("{0} used: {1}", userstr, item));
                                 bool self = userstr == "You";
+                                if (!trashed)
+                                    Announce(string.Format("{0} used: {1}", userstr, item));
+                                else
+                                    Announce(string.Format("{0} trashed {1} and got: {2}", userstr, item, packet.GetReplacementItem()));
+                                if (trashed)
+                                {
+                                    if (self)
+                                        PushItem(packet.GetReplacementItem());
+                                    return;
+                                }
                                 switch (item)
                                 {
                                     case EItem.Handcuffs:
+                                        {
+                                            if (!self)
+                                                return;
+                                            SetFlag(EFlags.HandcuffUsageBlocked);
+                                        }
                                         break;
                                     case EItem.Magnifying:
                                         {
@@ -248,11 +270,13 @@ namespace BSR_Client
                                         break;
                                     case EItem.Adrenaline:
                                         break;
-                                    case EItem.Magazine:
-                                        break;
-                                    case EItem.Bullet:
-                                        break;
                                     case EItem.Trashbin:
+                                        {
+                                            if (!self)
+                                                return;
+                                            if (GetItemCount() > 0)
+                                                SetFlag(EFlags.NextItemTrashed);
+                                        }
                                         break;
                                     case EItem.Heroine:
                                         break;
@@ -355,6 +379,8 @@ namespace BSR_Client
                 case "Item7":
                 case "Item8":
                     {
+                        if (UseItem(action, false) == EItem.Handcuffs && IsFlagSet(EFlags.HandcuffUsageBlocked))
+                            return;
                         EItem item = UseItem(action);
                         switch (item)
                         {
@@ -370,6 +396,12 @@ namespace BSR_Client
                             case EItem.Swapper:
                                 SetFlag(EFlags.UsingSwapper | EFlags.UsingPlayerItem);
                                 break;
+                        }
+                        if (IsFlagSet(EFlags.NextItemTrashed))
+                        {
+                            ResetFlag(EFlags.NextItemTrashed);
+                            Packet.Send(new PacketUseItem(You, item), Sync);
+                            return;
                         }
                         if (IsFlagSet(EFlags.UsingPlayerItem))
                             SetPlayersInteractable(true);

@@ -206,6 +206,18 @@ namespace BSR_Client
             }
         }
 
+        public void PushItem(EItem item)
+        {
+            foreach (Button itemd in ItemDisplays)
+            {
+                if (Enum.TryParse(GetItemType(itemd), out EItem type) && type == EItem.Nothing)
+                {
+                    PutItemInSlot(itemd, item);
+                    break;
+                }
+            }
+        }
+
         public void HideBullets()
         {
             foreach (Rectangle b in BulletDisplays)
@@ -463,7 +475,21 @@ namespace BSR_Client
             return (text as TextBlock).Text;
         }
 
-        public EItem UseItem(string slot)
+        public int GetItemCount(EItem item = EItem.Count)
+        {
+            int result = 0;
+            foreach (Button itemd in ItemDisplays)
+            {
+                string typestr = GetItemType(itemd);
+                if (!Enum.TryParse(typestr, out EItem type))
+                    continue;
+                if ((item == EItem.Count && type != EItem.Nothing) || (item != EItem.Count && item == type))
+                    result++;
+            }
+            return result;
+        }
+
+        public EItem UseItem(string slot, bool remove = true)
         {
             Button it = null;
             foreach (Button itemd in ItemDisplays)
@@ -478,7 +504,8 @@ namespace BSR_Client
                 return EItem.Nothing;
             if (Enum.TryParse(GetItemType(it), out EItem item))
             {
-                PutItemInSlot(it, EItem.Nothing);
+                if (remove)
+                    PutItemInSlot(it, EItem.Nothing);
                 return item;
             }
             return EItem.Nothing;
