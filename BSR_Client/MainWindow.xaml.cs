@@ -69,6 +69,8 @@ namespace BSR_Client
                                     SessionHost.Content = "Host Session";
                                     Connect.Content = "Connect";
                                     GameSettings.Content = "";
+                                    Username.IsReadOnly = false;
+                                    HostUsername.IsReadOnly = false;
                                     return;
                                 }
                             }

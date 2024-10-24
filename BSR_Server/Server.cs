@@ -725,7 +725,7 @@ namespace Server
                             {
                                 if (!allowed.Contains(c + ""))
                                 {
-                                    response = EJoinResponse.FailedInvalidSession;
+                                    response = EJoinResponse.FailedInvalidSessionName;
                                     break;
                                 }
                             }
@@ -737,12 +737,12 @@ namespace Server
                                 {
                                     if (!allowed.Contains(c + ""))
                                     {
-                                        response = EJoinResponse.FailedInvalidName;
+                                        response = EJoinResponse.FailedInvalidPlayerName;
                                         break;
                                     }
                                 }
                                 if (Sessions.ContainsKey(session) && Sessions[session].IsPlayerConnected(player))
-                                    response = EJoinResponse.FailedInvalidName;
+                                    response = EJoinResponse.FailedPlayerNameAlreadyUsed;
                             }
                             if (response == EJoinResponse.Pending)
                                 if (Sessions.ContainsKey(session))

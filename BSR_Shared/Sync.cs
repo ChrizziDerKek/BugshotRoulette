@@ -31,8 +31,10 @@ public enum EJoinResponse
     Succeeded,
     SucceededHost,
     FailedLocked,
-    FailedInvalidName,
+    FailedInvalidSessionName,
     FailedInvalidSession,
+    FailedInvalidPlayerName,
+    FailedPlayerNameAlreadyUsed,
 }
 
 public enum EBullet
