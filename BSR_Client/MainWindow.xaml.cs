@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Threading;
 using System.Runtime.InteropServices;
 using static System.Net.Mime.MediaTypeNames;
+using System.Windows.Media.Animation;
 
 namespace BSR_Client
 {
@@ -149,6 +150,7 @@ namespace BSR_Client
                                     return;
                                 }
                                 SetActive(true);
+                                Announce("Your turn");
                             }
                             break;
                         case EPacket.Shoot:
@@ -157,7 +159,7 @@ namespace BSR_Client
                                 Console.WriteLine(packet.ToString());
                                 string shooter = packet.GetSender();
                                 string target = packet.GetTarget();
-                                EShotFlags flags = packet.GetFlags();
+                                ERoundFlags flags = packet.GetFlags();
                                 string targetstr = target;
                                 if (shooter == You && target == shooter)
                                     targetstr = "yourself";
@@ -174,7 +176,7 @@ namespace BSR_Client
                                 }
                                 Announce(string.Format("{0} shoot{1} {2}", shooterstr, plural, targetstr));
                                 EBullet type = packet.GetBullet();
-                                bool inverted = packet.HasFlag(EShotFlags.Inverted);
+                                bool inverted = packet.HasFlag(ERoundFlags.ShotInverted);
                                 if (type == EBullet.Blank)
                                     Announce("The bullet was a blank");
                                 else
@@ -184,11 +186,11 @@ namespace BSR_Client
                                 if (type == EBullet.Live)
                                 {
                                     damage = 1;
-                                    if (packet.HasFlag(EShotFlags.SawedOff))
+                                    if (packet.HasFlag(ERoundFlags.ShotgunSawedOff))
                                         damage++;
-                                    if (packet.HasFlag(EShotFlags.Gunpowdered))
+                                    if (packet.HasFlag(ERoundFlags.ShotGunpowdered))
                                         damage += 2;
-                                    if (packet.HasFlag(EShotFlags.GunpowderBackfired))
+                                    if (packet.HasFlag(ERoundFlags.GunpowderBackfired))
                                         damage--;
                                 }
                                 Sound.PlayShotSfx(type, flags);
@@ -208,14 +210,50 @@ namespace BSR_Client
                                 string userstr = user;
                                 if (userstr == You)
                                     userstr = "You";
-                                bool self = userstr == "You";
-                                if (!trashed)
+                                bool shouldapply = userstr == "You";
+                                bool shouldtarget = false;
+                                string targetstr = "";
+                                if (packet.DoesHaveTarget())
+                                {
+                                    string target = packet.GetTarget();
+                                    if (target == You)
+                                        targetstr = "you";
+                                    else
+                                        targetstr = target;
+                                    shouldtarget = target == You;
+                                }
+                                bool stolen = packet.IsStolen();
+                                bool stealingfromyou = false;
+                                if (stolen)
+                                {
+                                    string stealstr = packet.GetStealingTarget();
+                                    if (stealstr == You)
+                                    {
+                                        stealstr = "you";
+                                        stealingfromyou = true;
+                                    }
+                                    Announce(string.Format("{0} stole {1} from {2}", userstr, item, stealstr));
+                                }
+                                if (packet.DoesHaveTarget())
+                                    Announce(string.Format("{0} used {1} on {2}", userstr, item, targetstr));
+                                else if (!trashed)
                                     Announce(string.Format("{0} used: {1}", userstr, item));
                                 else
                                     Announce(string.Format("{0} trashed {1} and got: {2}", userstr, item, packet.GetReplacementItem()));
+                                if (stealingfromyou)
+                                {
+                                    foreach (Button slot in ItemDisplays)
+                                    {
+                                        if (UseItem(slot.Name, false) == item)
+                                        {
+                                            UseItem(slot.Name);
+                                            break;
+                                        }
+                                    }
+                                }
                                 if (trashed)
                                 {
-                                    if (self)
+                                    if (shouldapply)
                                         PushItem(packet.GetReplacementItem());
                                     return;
                                 }
@@ -223,14 +261,14 @@ namespace BSR_Client
                                 {
                                     case EItem.Handcuffs:
                                         {
-                                            if (!self)
+                                            if (!shouldapply)
                                                 return;
                                             SetFlag(EFlags.HandcuffUsageBlocked);
                                         }
                                         break;
                                     case EItem.Magnifying:
                                         {
-                                            if (!self)
+                                            if (!shouldapply)
                                                 return;
                                             Announce(string.Format("Current Bullet: {0}", packet.GetBullet().ToString()));
                                         }
@@ -247,6 +285,8 @@ namespace BSR_Client
                                         break;
                                     case EItem.Phone:
                                         {
+                                            if (!shouldapply)
+                                                return;
                                             string[] numbers = new string[]
                                             {
                                                 "First",
@@ -269,20 +309,42 @@ namespace BSR_Client
                                         }
                                         break;
                                     case EItem.Adrenaline:
+                                        {
+                                            if (!IsFlagSet(EFlags.UsingAdrenaline))
+                                                return;
+                                            StoreItems();
+                                            EItem[] items = packet.GetItems();
+                                            OverrideItems(items);
+                                        }
                                         break;
                                     case EItem.Trashbin:
                                         {
-                                            if (!self)
+                                            if (!shouldapply)
                                                 return;
                                             if (GetItemCount() > 0)
                                                 SetFlag(EFlags.NextItemTrashed);
                                         }
                                         break;
                                     case EItem.Heroine:
+                                        {
+                                            if (!shouldtarget)
+                                                return;
+                                            Announce("You can't use any Items next Round");
+                                            SetFlag(EFlags.ItemUsageBlockedCompletely);
+                                        }
                                         break;
                                     case EItem.Katana:
                                         break;
                                     case EItem.Swapper:
+                                        {
+                                            EItem[] swapped = null;
+                                            if (shouldtarget)
+                                                swapped = packet.GetOtherItems();
+                                            else if (shouldapply)
+                                                swapped = packet.GetItems();
+                                            if (swapped != null)
+                                                OverrideItems(swapped);
+                                        }
                                         break;
                                     case EItem.Hat:
                                         HideBullets();
@@ -382,6 +444,11 @@ namespace BSR_Client
                         if (UseItem(action, false) == EItem.Handcuffs && IsFlagSet(EFlags.HandcuffUsageBlocked))
                             return;
                         EItem item = UseItem(action);
+                        if (IsFlagSet(EFlags.UsingAdrenaline))
+                        {
+                            ResetFlag(EFlags.UsingAdrenaline);
+                            RestoreItems();
+                        }
                         switch (item)
                         {
                             case EItem.Adrenaline:
@@ -435,10 +502,13 @@ namespace BSR_Client
                                 item = EItem.Swapper;
                             Packet.Send(new PacketUseItem(You, item, target), Sync);
                             ResetFlag(EFlags.UsingPlayerItem);
-                            ResetFlag(EFlags.UsingAdrenaline);
                             ResetFlag(EFlags.UsingHeroine);
                             ResetFlag(EFlags.UsingKatana);
                             ResetFlag(EFlags.UsingSwapper);
+                            SetPlayersInteractable(false);
+                            SetActive(true);
+                            if (item == EItem.Adrenaline)
+                                SetEverythingInteractable();
                         }
                     }
                     break;

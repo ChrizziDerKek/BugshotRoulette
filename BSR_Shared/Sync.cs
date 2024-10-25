@@ -6,7 +6,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
 
 public enum EPacket
 {
@@ -67,15 +66,19 @@ public enum EItem
     Count,
 }
 
-public enum EShotFlags
+public enum ERoundFlags
 {
     None = 0,
-    SawedOff = 1 << 0,
-    Gunpowdered = 1 << 1,
-    Inverted = 1 << 2,
+    ShotgunSawedOff = 1 << 0,
+    ShotGunpowdered = 1 << 1,
+    ShotInverted = 1 << 2,
     GunpowderBackfired = 1 << 3,
     AgainBecauseCuffed = 1 << 4,
     HandcuffsJustUsed = 1 << 5,
+    HasHeroineEffect = 1 << 6,
+    HasKatanaEffect = 1 << 7,
+    StealingItems = 1 << 8,
+    StealingTarget = 1 << 9,
 }
 
 public class SettingsData
@@ -138,12 +141,18 @@ class PacketUsedItem : Packet
     private bool Inverted;
     private bool Trashed;
     private EItem NewItem;
+    private string Target;
+    private bool HasTarget;
+    private EItem[] Items;
+    private string StolenFrom;
+    private bool Stealing;
+    private EItem[] OtherItems;
 
     public override EPacket Id => EPacket.UsedItem;
 
     public PacketUsedItem(List<byte> data) => Receive(data);
 
-    public PacketUsedItem(string sender, EItem item, bool trashed = false, EItem newitem = EItem.Nothing)
+    public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing)
     {
         Sender = sender;
         Item = item;
@@ -153,9 +162,69 @@ class PacketUsedItem : Packet
         Inverted = false;
         Trashed = trashed;
         NewItem = newitem;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
     }
 
-    public PacketUsedItem(string sender, int healed, bool cigs)
+    public PacketUsedItem(string sender, string target, EItem[] senderitems, EItem[] targetitems, string stolenfrom = null)
+    {
+        Sender = sender;
+        Item = EItem.Swapper;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+        Index = 0;
+        Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
+        Target = target;
+        HasTarget = true;
+        Items = senderitems;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = targetitems;
+    }
+
+    public PacketUsedItem(string sender, string target, EItem[] items)
+    {
+        Sender = sender;
+        Item = EItem.Adrenaline;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+        Index = 0;
+        Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
+        Target = target;
+        HasTarget = true;
+        Items = items;
+        StolenFrom = null;
+        Stealing = false;
+        OtherItems = null;
+    }
+
+    public PacketUsedItem(string sender, string target, EItem item, string stolenfrom = null)
+    {
+        Sender = sender;
+        Item = item;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+        Index = 0;
+        Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
+        Target = target;
+        HasTarget = true;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
+    }
+
+    public PacketUsedItem(string sender, int healed, bool cigs, string stolenfrom = null)
     {
         Sender = sender;
         Item = cigs ? EItem.Cigarettes : EItem.Medicine;
@@ -165,9 +234,15 @@ class PacketUsedItem : Packet
         Inverted = false;
         Trashed = false;
         NewItem = EItem.Nothing;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
     }
 
-    public PacketUsedItem(string sender, EBullet bullet, int index = 0)
+    public PacketUsedItem(string sender, EBullet bullet, string stolenfrom = null, int index = 0)
     {
         Sender = sender;
         Item = index == 0 ? EItem.Magnifying : EItem.Phone;
@@ -177,9 +252,15 @@ class PacketUsedItem : Packet
         Inverted = false;
         Trashed = false;
         NewItem = EItem.Nothing;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
     }
 
-    public PacketUsedItem(string sender, EBullet bullet, bool inverted)
+    public PacketUsedItem(string sender, EBullet bullet, bool inverted, string stolenfrom = null)
     {
         Sender = sender;
         Item = EItem.Beer;
@@ -189,6 +270,12 @@ class PacketUsedItem : Packet
         Inverted = inverted;
         Trashed = false;
         NewItem = EItem.Nothing;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
     }
 
     public string GetSender() => Sender;
@@ -207,6 +294,18 @@ class PacketUsedItem : Packet
 
     public EItem GetReplacementItem() => NewItem;
 
+    public bool DoesHaveTarget() => HasTarget;
+
+    public string GetTarget() => Target;
+
+    public EItem[] GetItems() => Items;
+
+    public bool IsStolen() => Stealing;
+
+    public string GetStealingTarget() => StolenFrom;
+
+    public EItem[] GetOtherItems() => OtherItems;
+
     protected override void Serialize(ISync sync)
     {
         int item = (int)Item;
@@ -214,18 +313,20 @@ class PacketUsedItem : Packet
         Item = (EItem)item;
         sync.SerializeStr(ref Sender);
         sync.SerializeBool(ref Trashed);
+        sync.SerializeBool(ref HasTarget);
+        sync.SerializeBool(ref Stealing);
         if (Trashed)
         {
             item = (int)NewItem;
             sync.SerializeInt(ref item);
             NewItem = (EItem)item;
         }
+        if (HasTarget)
+            sync.SerializeStr(ref Target);
+        if (Stealing)
+            sync.SerializeStr(ref StolenFrom);
         switch (Item)
         {
-            case EItem.Handcuffs:
-                break;
-            case EItem.Saw:
-                break;
             case EItem.Magnifying:
                 {
                     int bullet = (int)Bullet;
@@ -241,8 +342,6 @@ class PacketUsedItem : Packet
                     sync.SerializeBool(ref Inverted);
                 }
                 break;
-            case EItem.Inverter:
-                break;
             case EItem.Cigarettes:
             case EItem.Medicine:
                 sync.SerializeInt(ref Healed);
@@ -256,20 +355,48 @@ class PacketUsedItem : Packet
                 }
                 break;
             case EItem.Adrenaline:
-                break;
-            case EItem.Magazine:
-                break;
-            case EItem.Gunpowder:
-                break;
-            case EItem.Bullet:
-                break;
-            case EItem.Trashbin:
-                break;
-            case EItem.Heroine:
-                break;
-            case EItem.Katana:
-                break;
             case EItem.Swapper:
+                {
+                    if (Items == null)
+                    {
+                        Items = new EItem[8];
+                        for (int i = 0; i < Items.Length; i++)
+                        {
+                            int it = 0;
+                            sync.SerializeInt(ref it);
+                            Items[i] = (EItem)it;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < Items.Length; i++)
+                        {
+                            int it = (int)Items[i];
+                            sync.SerializeInt(ref it);
+                        }
+                    }
+                    if (Item == EItem.Swapper)
+                    {
+                        if (OtherItems == null)
+                        {
+                            OtherItems = new EItem[8];
+                            for (int i = 0; i < OtherItems.Length; i++)
+                            {
+                                int it = 0;
+                                sync.SerializeInt(ref it);
+                                OtherItems[i] = (EItem)it;
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < OtherItems.Length; i++)
+                            {
+                                int it = (int)OtherItems[i];
+                                sync.SerializeInt(ref it);
+                            }
+                        }
+                    }
+                }
                 break;
         }
     }
@@ -332,14 +459,14 @@ class PacketShoot : Packet
 {
     private string Sender;
     private string Who;
-    private EShotFlags Flags;
+    private ERoundFlags Flags;
     private EBullet Type;
 
     public override EPacket Id => EPacket.Shoot;
 
     public PacketShoot(List<byte> data) => Receive(data);
 
-    public PacketShoot(string sender, string who, EShotFlags flags = EShotFlags.None, EBullet type = EBullet.Undefined)
+    public PacketShoot(string sender, string who, ERoundFlags flags = ERoundFlags.None, EBullet type = EBullet.Undefined)
     {
         Sender = sender;
         Who = who;
@@ -351,9 +478,9 @@ class PacketShoot : Packet
 
     public string GetTarget() => Who;
 
-    public bool HasFlag(EShotFlags flag) => (Flags & flag) != 0;
+    public bool HasFlag(ERoundFlags flag) => (Flags & flag) != 0;
 
-    public EShotFlags GetFlags() => Flags;
+    public ERoundFlags GetFlags() => Flags;
 
     public EBullet GetBullet() => Type;
 
@@ -363,7 +490,7 @@ class PacketShoot : Packet
         sync.SerializeStr(ref Who);
         int temp = (int)Flags;
         sync.SerializeInt(ref temp);
-        Flags = (EShotFlags)temp;
+        Flags = (ERoundFlags)temp;
         temp = (int)Type;
         sync.SerializeInt(ref temp);
         Type = (EBullet)temp;

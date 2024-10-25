@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows.Controls;
@@ -39,6 +38,7 @@ namespace BSR_Client
         UsingSwapper = 1 << 5,
         NextItemTrashed = 1 << 6,
         HandcuffUsageBlocked = 1 << 7,
+        ItemUsageBlockedCompletely = 1 << 8,
     }
 
     public class SettingsItem
@@ -119,13 +119,13 @@ namespace BSR_Client
             }
         }
 
-        public void PlayShotSfx(EBullet bullet, EShotFlags flags)
+        public void PlayShotSfx(EBullet bullet, ERoundFlags flags)
         {
             if (!ShouldPlay())
                 return;
             if (bullet == EBullet.Live)
             {
-                if ((flags & EShotFlags.Gunpowdered) != 0)
+                if ((flags & ERoundFlags.ShotGunpowdered) != 0)
                 {
                     PlayOnce(GunpowderShot);
                     return;
@@ -297,6 +297,8 @@ namespace BSR_Client
         private bool GameStarted = false;
         private EFlags Flags = EFlags.None;
         private bool PacketHandled = false;
+        private readonly EItem[] ItemStorage = new EItem[8];
+        private bool AreItemsStored = false;
         private readonly SoundLib Sound = new SoundLib();
     }
 }

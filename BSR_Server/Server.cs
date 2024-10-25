@@ -16,6 +16,288 @@ using System.Threading;
 
 namespace Server
 {
+    public class Bot
+    {
+        private Session Session;
+        private List<bool> BulletIsKnown;
+        private bool KnowsCurrentBullet;
+        private EBullet CurrentlyKnownBullet;
+        private bool? ShouldTargetPlayer;
+        private string Dealer;
+        private bool CanUseAdrenaline;
+        private bool UsingMedicine;
+        private bool UsingSaw;
+        private bool SawedOff;
+        private int Damage;
+        private bool CuffedPlayer;
+        private bool MainLoopFinished;
+
+        public Bot(Session session)
+        {
+            Session = session;
+            BulletIsKnown = new List<bool>();
+            KnowsCurrentBullet = false;
+            CurrentlyKnownBullet = EBullet.Undefined;
+            ShouldTargetPlayer = null;
+            Dealer = session.GetBotName();
+            CanUseAdrenaline = false;
+            UsingMedicine = false;
+            SawedOff = false;
+            UsingSaw = false;
+            Damage = 1;
+            CuffedPlayer = false;
+            MainLoopFinished = false;
+        }
+
+        public void BotTurn()
+        {
+            bool hassaw = false;
+            bool hascigs = false;
+            EItem wantstouse = EItem.Nothing;
+            EBullet racked = EBullet.Undefined;
+            int phoneindex = 0;
+            if (!KnowsCurrentBullet)
+            {
+                KnowsCurrentBullet = FigureOutBullet();
+                if (KnowsCurrentBullet)
+                    UpdateKnownBullet();
+            }
+            if (Session.GetBulletCount() == 1)
+                UpdateKnownBullet();
+            foreach (EItem item in Session.GetItems(Dealer))
+            {
+                if (item == EItem.Cigarettes)
+                    hascigs = true;
+                if (item == EItem.Adrenaline)
+                    CanUseAdrenaline = true;
+            }
+            List<KeyValuePair<EItem, string>> availableitems = new List<KeyValuePair<EItem, string>>();
+            foreach (EItem it in Session.GetItems(Dealer))
+                if (it != EItem.Nothing)
+                    availableitems.Add(new KeyValuePair<EItem, string>(it, Dealer));
+            if (CanUseAdrenaline)
+                foreach (string player in Session.GetPlayers())
+                    if (!Session.IsBot(player))
+                        foreach (EItem it in Session.GetItems(player))
+                            if (it < EItem.Adrenaline && it != EItem.Nothing)
+                                availableitems.Add(new KeyValuePair<EItem, string>(it, player));
+            int health = Session.GetHealth(Dealer);
+            int maxhealth = Session.GetMaxHealth();
+            int bulletcount = Session.GetBulletCount();
+            foreach (KeyValuePair<EItem, string> it in availableitems)
+            {
+                EItem item = it.Key;
+                switch (item)
+                {
+                    case EItem.Handcuffs:
+                        if (!CuffedPlayer && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            CuffedPlayer = true;
+                        }
+                        break;
+                    case EItem.Cigarettes:
+                        if (health < maxhealth)
+                        {
+                            wantstouse = item;
+                            hascigs = false;
+                        }
+                        break;
+                    case EItem.Saw:
+                        if (!SawedOff && CurrentlyKnownBullet == EBullet.Live)
+                        {
+                            wantstouse = item;
+                            UsingSaw = true;
+                            SawedOff = true;
+                            Damage = 2;
+                        }
+                        break;
+                    case EItem.Magnifying:
+                        if (!KnowsCurrentBullet && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            UpdateKnownBullet();
+                        }
+                        break;
+                    case EItem.Beer:
+                        if (CurrentlyKnownBullet != EBullet.Live && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            racked = Session.PopBullet();
+                            BulletIsKnown.RemoveAt(0);
+                            KnowsCurrentBullet = false;
+                        }
+                        break;
+                    case EItem.Inverter:
+                        if (KnowsCurrentBullet && CurrentlyKnownBullet == EBullet.Blank)
+                        {
+                            wantstouse = item;
+                            Session.InvertBullet();
+                            UpdateKnownBullet();
+                        }
+                        break;
+                    case EItem.Medicine:
+                        if (health < maxhealth && !hascigs && !UsingMedicine && health != 1)
+                        {
+                            wantstouse = item;
+                            UsingMedicine = true;
+                        }
+                        break;
+                    case EItem.Phone:
+                        if (bulletcount >= 2)
+                        {
+                            int decision = Session.GetRNG().Next(1, bulletcount);
+                            if (decision == 8)
+                                decision--;
+                            BulletIsKnown[decision] = true;
+                            phoneindex = decision;
+                            wantstouse = item;
+                        }
+                        break;
+                }
+                if (wantstouse != EItem.Nothing)
+                    break;
+            }
+            if (wantstouse == EItem.Nothing)
+                MainLoopFinished = true;
+            foreach (EItem item in Session.GetItems(Dealer))
+                if (item == EItem.Saw)
+                    hassaw = true;
+            if (MainLoopFinished && !UsingSaw && hassaw && !SawedOff && CurrentlyKnownBullet != EBullet.Blank)
+            {
+                if (CoinFlip())
+                {
+                    ShouldTargetPlayer = true;
+                    wantstouse = EItem.Saw;
+                    UsingSaw = true;
+                    SawedOff = true;
+                    Damage = 2;
+                }
+                else ShouldTargetPlayer = false;
+            }
+            if (wantstouse != EItem.Nothing)
+            {
+                bool done = false;
+                switch (wantstouse)
+                {
+                    case EItem.Cigarettes:
+                        {
+                            health++;
+                            if (health > maxhealth)
+                                health = maxhealth;
+                            Session.SetHealth(Dealer, health);
+                        }
+                        break;
+                    case EItem.Medicine:
+                        {
+                            if (Session.GetRNG().Next(0, 2) == 0)
+                                health--;
+                            else
+                                health += 2;
+                            if (health < 0)
+                                health = 0;
+                            if (health > maxhealth)
+                                health = maxhealth;
+                            Session.SetHealth(Dealer, health);
+                            done = true;
+                        }
+                        break;
+                }
+                bool stealing = !Session.RemoveItem(Dealer, wantstouse);
+                foreach (KeyValuePair<EItem, string> it in availableitems)
+                {
+                    EItem item = it.Key;
+                    string player = it.Value;
+                    if (item == wantstouse && stealing && wantstouse != EItem.Adrenaline)
+                    {
+                        Session.RemoveItem(Dealer, EItem.Adrenaline);
+                        Session.RemoveItem(player, wantstouse);
+                        CanUseAdrenaline = false;
+                        break;
+                    }
+                }
+                //TODO: Dealer used ... / Dealer used Adrenaline to steal ... from ...
+                if (done)
+                    return;
+                BotTurn();
+                return;
+            }
+            if (ShouldTargetPlayer == null)
+                ShouldTargetPlayer = Session.GetRNG().Next(0, 2) == 0;
+            EBullet bullet = Session.PopBullet();
+            BulletIsKnown.RemoveAt(0);
+            string target = Dealer;
+            if (ShouldTargetPlayer == true)
+            {
+                List<string> players = Session.GetPlayers();
+                int decision;
+                do decision = Session.GetRNG().Next(0, players.Count);
+                while (players[decision] == Dealer);
+            }
+            //TODO: Health -= Damage and Pass Control
+            ShouldTargetPlayer = null;
+            CurrentlyKnownBullet = EBullet.Undefined;
+            KnowsCurrentBullet = false;
+        }
+
+        public void RoundStart(bool initial, bool noitems)
+        {
+            foreach (EBullet bullet in Session.GetBullets(false))
+                BulletIsKnown.Add(false);
+        }
+
+        private bool CoinFlip()
+        {
+            int nlive = 0;
+            int nblank = 0;
+            foreach (EBullet bullet in Session.GetBullets(false))
+            {
+                if (bullet == EBullet.Live)
+                    nlive++;
+                else if (bullet == EBullet.Blank)
+                    nblank++;
+            }
+            if (nlive == nblank)
+                return Session.GetRNG().Next(0, 2) == 0;
+            return nlive > nblank;
+        }
+
+        private void UpdateKnownBullet()
+        {
+            KnowsCurrentBullet = true;
+            CurrentlyKnownBullet = Session.GetNextBullet();
+            ShouldTargetPlayer = CurrentlyKnownBullet == EBullet.Live;
+        }
+
+        private bool FigureOutBullet()
+        {
+            if (BulletIsKnown[0])
+                return true;
+            List<EBullet> bullets = Session.GetBullets(false);
+            int nlive = 0;
+            int nblank = 0;
+            foreach (EBullet bullet in bullets)
+            {
+                if (bullet == EBullet.Live)
+                    nlive++;
+                else if (bullet == EBullet.Blank)
+                    nblank++;
+            }
+            if (nlive == 0 || nblank == 0)
+                return true;
+            for (int i = 0; i < BulletIsKnown.Count; i++)
+            {
+                if (!BulletIsKnown[i])
+                    continue;
+                if (bullets[i] == EBullet.Live)
+                    nlive--;
+                else if (bullets[i] == EBullet.Blank)
+                    nblank--;
+            }
+            return nlive == 0 || nblank == 0;
+        }
+    }
+
     public class Session
     {
         private string Host;
@@ -33,8 +315,11 @@ namespace Server
         private int StartLives;
         private bool CanGoAgain;
         private Dictionary<string, List<EItem>> LastGeneratedItems;
-        private EShotFlags NextBulletFlags;
+        private ERoundFlags NextRoundFlags;
         private EItem LastUsedItem;
+        private Dictionary<string, ERoundFlags> PlayerFlags;
+        private string BotName;
+        private Bot Dealer;
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -76,8 +361,26 @@ namespace Server
             CanGoAgain = false;
             PlayerHealth = new Dictionary<string, int>();
             LastGeneratedItems = new Dictionary<string, List<EItem>>();
-            NextBulletFlags = EShotFlags.None;
+            NextRoundFlags = ERoundFlags.None;
             LastUsedItem = EItem.Nothing;
+            PlayerFlags = new Dictionary<string, ERoundFlags>();
+            BotName = "Dealer";
+            Dealer = null;
+        }
+
+        public string GetBotName() => BotName;
+
+        public bool IsBot(string player) => BotName == player;
+
+        public bool BotExists() => Dealer != null;
+
+        public Bot GetBot() => Dealer;
+
+        public void SwapItems(string player, string with)
+        {
+            if (!PlayerItems.ContainsKey(player) || !PlayerItems.ContainsKey(with))
+                return;
+            (PlayerItems[with], PlayerItems[player]) = (PlayerItems[player], PlayerItems[with]);
         }
 
         public void SetLastUsedItem(EItem item) => LastUsedItem = item;
@@ -86,28 +389,62 @@ namespace Server
 
         public void InvertBullet() => ActualBullets[0] = ActualBullets[0] == EBullet.Live ? EBullet.Blank : EBullet.Live;
 
-        public bool BulletHasFlag(EShotFlags flag) => (NextBulletFlags & flag) != 0;
+        public bool HasFlag(ERoundFlags flag, string player = null)
+        {
+            if (player == null)
+                return (NextRoundFlags & flag) != 0;
+            if (!PlayerFlags.ContainsKey(player))
+                return false;
+            return (PlayerFlags[player] & flag) != 0;
+        }
 
-        public void SetBulletFlag(EShotFlags flag) => NextBulletFlags |= flag;
+        public void SetFlag(ERoundFlags flag, string player = null)
+        {
+            if (player == null)
+            {
+                NextRoundFlags |= flag;
+                return;
+            }
+            if (!PlayerFlags.ContainsKey(player))
+                PlayerFlags.Add(player, ERoundFlags.None);
+            PlayerFlags[player] |= flag;
+        }
 
-        public void ResetBulletFlag(EShotFlags flag) => NextBulletFlags &= ~flag;
+        public void ResetFlag(ERoundFlags flag, string player = null)
+        {
+            if (player == null)
+            {
+                NextRoundFlags &= ~flag;
+                return;
+            }
+            if (!PlayerFlags.ContainsKey(player))
+                PlayerFlags.Add(player, ERoundFlags.None);
+            PlayerFlags[player] &= ~flag;
+        }
 
-        public EShotFlags GetBulletFlags() => NextBulletFlags;
+        public ERoundFlags GetRoundFlags(string player = null)
+        {
+            if (player == null)
+                return NextRoundFlags;
+            if (!PlayerFlags.ContainsKey(player))
+                return ERoundFlags.None;
+            return PlayerFlags[player];
+        }
 
-        public void ResetBulletFlags(bool everything = false)
+        public void ResetGlobalFlags(bool everything = false)
         {
             if (everything)
             {
-                NextBulletFlags = EShotFlags.None;
+                NextRoundFlags = ERoundFlags.None;
                 return;
             }
-            bool again = BulletHasFlag(EShotFlags.AgainBecauseCuffed);
-            bool used = BulletHasFlag(EShotFlags.HandcuffsJustUsed);
-            NextBulletFlags = EShotFlags.None;
+            bool again = HasFlag(ERoundFlags.AgainBecauseCuffed);
+            bool used = HasFlag(ERoundFlags.HandcuffsJustUsed);
+            NextRoundFlags = ERoundFlags.None;
             if (again)
-                SetBulletFlag(EShotFlags.AgainBecauseCuffed);
+                SetFlag(ERoundFlags.AgainBecauseCuffed);
             if (used)
-                SetBulletFlag(EShotFlags.HandcuffsJustUsed);
+                SetFlag(ERoundFlags.HandcuffsJustUsed);
         }
 
         public Dictionary<string, List<EItem>> GetLastGeneratedItems() => LastGeneratedItems;
@@ -155,14 +492,30 @@ namespace Server
                 Locked = true;
         }
 
+        public void AddBot()
+        {
+            if (Players.Contains(BotName))
+                return;
+            Players.Add(BotName);
+            Dealer = new Bot(this);
+            if (Players.Count >= Settings.MaxPlayers)
+                Locked = true;
+        }
+
         public void RemovePlayer(string player)
         {
+            if (!Players.Contains(player))
+                return;
+            Dealer = null;
             Players.Remove(player);
             PlayerItems.Remove(player);
             PlayerHealth.Remove(player);
+            PlayerFlags.Remove(player);
             if (Players.Count < Settings.MaxPlayers)
                 Locked = false;
         }
+
+        public void RemoveBot() => RemovePlayer(BotName);
 
         public void FixHostQueue(string player) => NextHosts = new Queue<string>(NextHosts.Where(h => h != player));
 
@@ -193,7 +546,7 @@ namespace Server
         public int SwitchPlayer()
         {
             SetLastUsedItem(EItem.Nothing);
-            ResetBulletFlags(true);
+            ResetGlobalFlags(true);
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
             return CurrentPlayer;
         }
@@ -219,6 +572,8 @@ namespace Server
                         PlayerHealth[player] = StartLives;
                 }
             }
+            if (BotExists())
+                Dealer.RoundStart(initial, noitems);
         }
 
         public void PushBullet()
@@ -357,16 +712,17 @@ namespace Server
             return false;
         }
 
-        public void RemoveItem(string player, EItem item)
+        public bool RemoveItem(string player, EItem item)
         {
             for (int i = 0; i < PlayerItems[player].Length; i++)
             {
                 if (PlayerItems[player][i] == item)
                 {
                     PlayerItems[player][i] = EItem.Nothing;
-                    break;
+                    return true;
                 }
             }
+            return false;
         }
 
         public int GetItemCount(string player, EItem item = EItem.Count)
@@ -535,58 +891,87 @@ namespace Server
                             string target = packet.GetTarget();
                             EItem item = packet.GetItem();
                             Session session = Sessions[sender.GetSession()];
-                            if (!session.PlayerHasItem(user, item))
+                            bool stealing = session.HasFlag(ERoundFlags.StealingItems, user);
+                            if (stealing)
+                                session.ResetFlag(ERoundFlags.StealingItems, user);
+                            if (stealing && item == EItem.Adrenaline)
+                            {
+                                Console.WriteLine("Rejected because it's not possible to steal adrenaline");
+                                return;
+                            }
+                            if (!session.PlayerHasItem(user, item) && !stealing)
                             {
                                 Console.WriteLine("Rejected because sender doesn't have the item");
                                 return;
                             }
-                            session.RemoveItem(user, item);
+                            if (user == target)
+                            {
+                                Console.WriteLine("Rejected because sender can't target themselves");
+                                return;
+                            }
+                            string removetarget = user;
+                            foreach (string player in session.GetPlayers())
+                            {
+                                if (session.HasFlag(ERoundFlags.StealingTarget, player))
+                                {
+                                    removetarget = player;
+                                    session.ResetFlag(ERoundFlags.StealingTarget, player);
+                                    break;
+                                }
+                            }
+                            string stealtarget = stealing ? removetarget : null;
+                            if (!session.PlayerHasItem(removetarget, item) || (!stealing && user != removetarget))
+                            {
+                                Console.WriteLine("Rejected because remove target doesn't have the item");
+                                return;
+                            }
+                            session.RemoveItem(removetarget, item);
                             EItem last = session.GetLastUsedItem();
                             session.SetLastUsedItem(item);
                             if (last == EItem.Trashbin)
                             {
                                 EItem replacement = session.GenerateItems(user, 1, false, true);
-                                Broadcast(new PacketUsedItem(user, item, true, replacement), session, "Item trashed");
+                                Broadcast(new PacketUsedItem(user, item, stealtarget, true, replacement), session, "Item trashed");
                                 return;
                             }
                             switch (item)
                             {
                                 case EItem.Handcuffs:
                                     {
-                                        if (session.BulletHasFlag(EShotFlags.HandcuffsJustUsed))
+                                        if (session.HasFlag(ERoundFlags.HandcuffsJustUsed))
                                         {
-                                            Console.WriteLine("Rejected because handcuffs cannot be stacked");
+                                            Console.WriteLine("Rejected because handcuffs can't be stacked");
                                             return;
                                         }
-                                        session.SetBulletFlag(EShotFlags.AgainBecauseCuffed);
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        session.SetFlag(ERoundFlags.AgainBecauseCuffed);
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Cigarettes:
                                     {
                                         int health = session.GetHealth(user);
                                         session.SetHealth(user, health + 1);
-                                        Broadcast(new PacketUsedItem(user, 1, true), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, 1, true, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Saw:
                                     {
-                                        session.SetBulletFlag(EShotFlags.SawedOff);
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        session.SetFlag(ERoundFlags.ShotgunSawedOff);
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Magnifying:
                                     {
                                         EBullet bullet = session.GetNextBullet();
-                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined), session, "Item usage");
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Beer:
                                     {
                                         EBullet bullet = session.PopBullet();
-                                        bool inverted = session.BulletHasFlag(EShotFlags.Inverted);
-                                        session.ResetBulletFlags();
-                                        Broadcast(new PacketUsedItem(user, bullet, inverted), session, "Item usage");
+                                        bool inverted = session.HasFlag(ERoundFlags.ShotInverted);
+                                        session.ResetGlobalFlags();
+                                        Broadcast(new PacketUsedItem(user, bullet, inverted, stealtarget), session, "Item usage");
                                         Thread.Sleep(100);
                                         if (session.GetBulletCount() == 0)
                                         {
@@ -597,12 +982,12 @@ namespace Server
                                     break;
                                 case EItem.Inverter:
                                     {
-                                        if (session.BulletHasFlag(EShotFlags.Inverted))
-                                            session.ResetBulletFlag(EShotFlags.Inverted);
+                                        if (session.HasFlag(ERoundFlags.ShotInverted))
+                                            session.ResetFlag(ERoundFlags.ShotInverted);
                                         else
-                                            session.SetBulletFlag(EShotFlags.Inverted);
+                                            session.SetFlag(ERoundFlags.ShotInverted);
                                         session.InvertBullet();
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Medicine:
@@ -612,7 +997,7 @@ namespace Server
                                         if (session.GetRNG().Next(0, 2) == 0)
                                             modifier = -1;
                                         session.SetHealth(user, health + modifier);
-                                        Broadcast(new PacketUsedItem(user, modifier, false), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, modifier, false, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Phone:
@@ -622,14 +1007,24 @@ namespace Server
                                         if (bullets.Count > 1)
                                             index = session.GetRNG().Next(1, bullets.Count);
                                         EBullet bullet = index == -1 ? EBullet.Undefined : bullets[index];
-                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, index), session, "Item usage");
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget, index), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Adrenaline:
+                                    {
+                                        if (!session.IsPlayerConnected(target))
+                                        {
+                                            Console.WriteLine("Rejected because of invalid target");
+                                            return;
+                                        }
+                                        session.SetFlag(ERoundFlags.StealingItems, user);
+                                        session.SetFlag(ERoundFlags.StealingTarget, target);
+                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(target)), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Magazine:
                                     {
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                         Thread.Sleep(100);
                                         session.RoundStart(false, true);
                                         Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true), session, "New Round Start");
@@ -637,31 +1032,50 @@ namespace Server
                                     break;
                                 case EItem.Gunpowder:
                                     {
-                                        session.SetBulletFlag(EShotFlags.Gunpowdered);
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        session.SetFlag(ERoundFlags.ShotGunpowdered);
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Bullet:
                                     {
                                         session.PushBullet();
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Trashbin:
                                     {
                                         if (session.GetItemCount(user) <= 0)
                                             session.SetLastUsedItem(last);
-                                        Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Heroine:
+                                    {
+                                        if (!session.IsPlayerConnected(target))
+                                        {
+                                            Console.WriteLine("Rejected because of invalid target");
+                                            return;
+                                        }
+                                        if (!session.HasFlag(ERoundFlags.HasHeroineEffect, target))
+                                            session.SetFlag(ERoundFlags.HasHeroineEffect, target);
+                                        Broadcast(new PacketUsedItem(user, target, item, stealtarget), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Katana:
                                     break;
                                 case EItem.Swapper:
+                                    {
+                                        if (!session.IsPlayerConnected(target))
+                                        {
+                                            Console.WriteLine("Rejected because of invalid target");
+                                            return;
+                                        }
+                                        session.SwapItems(user, target);
+                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(user), session.GetItems(target), stealtarget), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Hat:
-                                    Broadcast(new PacketUsedItem(user, item), session, "Item usage");
+                                    Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                     break;
                             }
                         }
@@ -682,9 +1096,9 @@ namespace Server
                                 Console.WriteLine("Rejected because player isn't in control");
                                 return;
                             }
-                            if (packet.GetFlags() != EShotFlags.None)
+                            if (packet.GetFlags() != ERoundFlags.None)
                             {
-                                Console.WriteLine("Rejected because of invalid bullet flags");
+                                Console.WriteLine("Rejected because of invalid round flags");
                                 return;
                             }
                             string target = packet.GetTarget();
@@ -696,9 +1110,9 @@ namespace Server
                             if (type == EBullet.Live)
                             {
                                 damage = 1;
-                                if (session.BulletHasFlag(EShotFlags.SawedOff))
+                                if (session.HasFlag(ERoundFlags.ShotgunSawedOff))
                                     damage++;
-                                if (session.BulletHasFlag(EShotFlags.Gunpowdered))
+                                if (session.HasFlag(ERoundFlags.ShotGunpowdered))
                                 {
                                     damage += 2;
                                     if (session.GetRNG().Next(0, 2) == 0)
@@ -714,13 +1128,13 @@ namespace Server
                             if (health < 0)
                                 health = 0;
                             session.SetHealth(target, health);
-                            EShotFlags flags = session.GetBulletFlags();
+                            ERoundFlags flags = session.GetRoundFlags();
                             if (backfired)
-                                flags |= EShotFlags.GunpowderBackfired;
-                            if (session.BulletHasFlag(EShotFlags.Inverted))
-                                flags |= EShotFlags.Inverted;
-                            bool cuffed = session.BulletHasFlag(EShotFlags.AgainBecauseCuffed);
-                            session.ResetBulletFlags();
+                                flags |= ERoundFlags.GunpowderBackfired;
+                            if (session.HasFlag(ERoundFlags.ShotInverted))
+                                flags |= ERoundFlags.ShotInverted;
+                            bool cuffed = session.HasFlag(ERoundFlags.AgainBecauseCuffed);
+                            session.ResetGlobalFlags();
                             Broadcast(new PacketShoot(actualsender, target, flags, type), session, "Shooting");
                             if (session.GetBulletCount() == 0)
                             {
@@ -732,13 +1146,17 @@ namespace Server
                             {
                                 if (cuffed)
                                 {
-                                    session.ResetBulletFlag(EShotFlags.AgainBecauseCuffed);
-                                    session.SetBulletFlag(EShotFlags.HandcuffsJustUsed);
+                                    session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
+                                    session.SetFlag(ERoundFlags.HandcuffsJustUsed);
                                 }
                                 else session.SwitchPlayer();
                             }
                             string nextplayer = session.GetCurrentPlayer();
-                            Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                            bool isbot = session.BotExists() && session.IsBot(nextplayer);
+                            if (!isbot)
+                                Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                            else
+                                session.GetBot().BotTurn();
                         }
                         break;
                     case EPacket.StartGame:
@@ -773,6 +1191,18 @@ namespace Server
                                 return;
                             }
                             session.UpdateSettings(packet.GetSettings());
+                            if (packet.GetSettings().BotDealer && !session.IsLocked())
+                            {
+                                session.AddBot();
+                                Thread.Sleep(100);
+                                Broadcast(new PacketNewPlayer(session.GetBotName()), session, "Bot Join Sync");
+                            }
+                            else
+                            {
+                                session.RemoveBot();
+                                Thread.Sleep(100);
+                                Broadcast(new PacketRemoveLocalPlayer(session.GetBotName(), null), session, "Bot Local Removal");
+                            }
                         }
                         break;
                     case EPacket.Disconnected:
@@ -833,6 +1263,8 @@ namespace Server
                                 response = EJoinResponse.FailedInvalidSession;
                             if (response == EJoinResponse.Pending)
                             {
+                                if (player == "Dealer" || player == "God")
+                                    response = EJoinResponse.FailedPlayerNameAlreadyUsed;
                                 foreach (char c in player)
                                 {
                                     if (!allowed.Contains(c + ""))

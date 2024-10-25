@@ -110,6 +110,12 @@ namespace BSR_Client
             return "";
         }
 
+        public void BlockItems()
+        {
+            foreach (Button it in ItemDisplays)
+                it.IsEnabled = false;
+        }
+
         public void SetActive(bool active)
         {
             Shoot.IsEnabled = active;
@@ -117,8 +123,20 @@ namespace BSR_Client
                 it.IsEnabled = active;
             foreach (Button it in PlayerDisplays)
                 it.IsEnabled = false;
-            if (active)
-                Announce("Your turn");
+            if (active && IsFlagSet(EFlags.ItemUsageBlockedCompletely))
+            {
+                BlockItems();
+                ResetFlag(EFlags.ItemUsageBlockedCompletely);
+            }
+        }
+
+        public void SetEverythingInteractable()
+        {
+            Shoot.IsEnabled = true;
+            foreach (Button it in ItemDisplays)
+                it.IsEnabled = true;
+            foreach (Button it in PlayerDisplays)
+                it.IsEnabled = true;
         }
 
         public void PopulatePlayerSlot(Button slot, string player, bool angry)
@@ -509,6 +527,29 @@ namespace BSR_Client
                 return item;
             }
             return EItem.Nothing;
+        }
+
+        public void StoreItems()
+        {
+            if (AreItemsStored)
+                return;
+            int it = 0;
+            foreach (Button slot in ItemDisplays)
+            {
+                if (Enum.TryParse(GetItemType(slot), out EItem item))
+                    ItemStorage[it] = item;
+                it++;
+            }
+            AreItemsStored = true;
+        }
+
+        public void RestoreItems()
+        {
+            if (!AreItemsStored)
+                return;
+            for (int i = 0; i < ItemStorage.Length; i++)
+                PutItemInSlot(ItemDisplays[i], ItemStorage[i]);
+            AreItemsStored = false;
         }
 
         public void SetMenuState(EMenuState state)
