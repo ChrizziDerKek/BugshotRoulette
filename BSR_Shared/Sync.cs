@@ -1040,6 +1040,8 @@ public abstract class Packet
 
     public abstract EPacket Id { get; }
 
+    private static Mutex Lock = new Mutex();
+
     protected void Receive(List<byte> data)
     {
         SyncReader reader = new SyncReader(data, 0);
@@ -1062,6 +1064,7 @@ public abstract class Packet
 
     public static void Send(Packet pack, ClientWorker cli)
     {
+        Lock.WaitOne();
         SyncWriter writer = new SyncWriter();
         EPacket temp = pack.Id;
         byte header = (byte)'$';
@@ -1069,6 +1072,7 @@ public abstract class Packet
         writer.SerializePacket(ref temp);
         pack.Serialize(writer);
         cli.Send(writer.Result);
+        Lock.ReleaseMutex();
     }
 }
 
