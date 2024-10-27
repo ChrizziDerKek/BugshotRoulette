@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -228,57 +228,61 @@ namespace BSR_Client
             (sender as MediaPlayer).Play();
         }
 
-        public SoundLib()
+        public SoundLib(MainWindow w)
         {
-            Title.Open(new Uri("sounds/bsr_title.wav", UriKind.Relative));
-            Background1.Open(new Uri("sounds/bsr_background1.wav", UriKind.Relative));
-            Background2.Open(new Uri("sounds/bsr_background2.wav", UriKind.Relative));
-            End.Open(new Uri("sounds/bsr_end.wav", UriKind.Relative));
-            Empty.Open(new Uri("sounds/bsr_empty.wav", UriKind.Relative));
-            Shot.Open(new Uri("sounds/bsr_shot.wav", UriKind.Relative));
-            GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.wav", UriKind.Relative));
-            Saw.Open(new Uri("sounds/bsr_saw.wav", UriKind.Relative));
-            Magnify.Open(new Uri("sounds/bsr_magnify.wav", UriKind.Relative));
-            Beer.Open(new Uri("sounds/bsr_beer.wav", UriKind.Relative));
-            Cig.Open(new Uri("sounds/bsr_cig.wav", UriKind.Relative));
-            Handcuff.Open(new Uri("sounds/bsr_handcuff.wav", UriKind.Relative));
-            Inverter.Open(new Uri("sounds/bsr_inverter.wav", UriKind.Relative));
-            Medicine.Open(new Uri("sounds/bsr_medicine.wav", UriKind.Relative));
-            Phone.Open(new Uri("sounds/bsr_phone.wav", UriKind.Relative));
-            Adrenaline.Open(new Uri("sounds/bsr_adrenaline.wav", UriKind.Relative));
-            Magazine.Open(new Uri("sounds/bsr_magazine.wav", UriKind.Relative));
-            Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
-            Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
-            Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
-            Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
-            Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
-            Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
-            Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
-            Title.MediaEnded += Media_Ended;
-            Background1.MediaEnded += Media_Ended;
-            Background2.MediaEnded += Media_Ended;
-            End.MediaEnded += Media_Ended;
-            Thread.Sleep(1000);
-            Empty.Volume = 1.0;
-            Shot.Volume = 1.0;
-            GunpowderShot.Volume = 1.0;
-            Saw.Volume = 1.0;
-            Magnify.Volume = 1.0;
-            Beer.Volume = 1.0;
-            Cig.Volume = 1.0;
-            Handcuff.Volume = 1.0;
-            Inverter.Volume = 1.0;
-            Medicine.Volume = 1.0;
-            Phone.Volume = 1.0;
-            Adrenaline.Volume = 1.0;
-            Magazine.Volume = 1.0;
-            Gunpowder.Volume = 1.0;
-            Bullet.Volume = 1.0;
-            Trashbin.Volume = 1.0;
-            Heroine.Volume = 1.0;
-            Katana.Volume = 1.0;
-            Swapper.Volume = 1.0;
-            Hat.Volume = 1.0;
+            w.Dispatcher.Invoke(() =>
+            {
+                Title.Open(new Uri("sounds/bsr_title.wav", UriKind.Relative));
+                Background1.Open(new Uri("sounds/bsr_background1.wav", UriKind.Relative));
+                Background2.Open(new Uri("sounds/bsr_background2.wav", UriKind.Relative));
+                End.Open(new Uri("sounds/bsr_end.wav", UriKind.Relative));
+                Empty.Open(new Uri("sounds/bsr_empty.wav", UriKind.Relative));
+                Shot.Open(new Uri("sounds/bsr_shot.wav", UriKind.Relative));
+                GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.wav", UriKind.Relative));
+                Saw.Open(new Uri("sounds/bsr_saw.wav", UriKind.Relative));
+                Magnify.Open(new Uri("sounds/bsr_magnify.wav", UriKind.Relative));
+                Beer.Open(new Uri("sounds/bsr_beer.wav", UriKind.Relative));
+                Cig.Open(new Uri("sounds/bsr_cig.wav", UriKind.Relative));
+                Handcuff.Open(new Uri("sounds/bsr_handcuff.wav", UriKind.Relative));
+                Inverter.Open(new Uri("sounds/bsr_inverter.wav", UriKind.Relative));
+                Medicine.Open(new Uri("sounds/bsr_medicine.wav", UriKind.Relative));
+                Phone.Open(new Uri("sounds/bsr_phone.wav", UriKind.Relative));
+                Adrenaline.Open(new Uri("sounds/bsr_adrenaline.wav", UriKind.Relative));
+                Magazine.Open(new Uri("sounds/bsr_magazine.wav", UriKind.Relative));
+                Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
+                Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
+                Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
+                Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
+                Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
+                Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
+                Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
+                Title.MediaEnded += Media_Ended;
+                Background1.MediaEnded += Media_Ended;
+                Background2.MediaEnded += Media_Ended;
+                End.MediaEnded += Media_Ended;
+                Task.Delay(500).Wait();
+                Empty.Volume = 1.0;
+                Shot.Volume = 1.0;
+                GunpowderShot.Volume = 1.0;
+                Saw.Volume = 1.0;
+                Magnify.Volume = 1.0;
+                Beer.Volume = 1.0;
+                Cig.Volume = 1.0;
+                Handcuff.Volume = 1.0;
+                Inverter.Volume = 1.0;
+                Medicine.Volume = 1.0;
+                Phone.Volume = 1.0;
+                Adrenaline.Volume = 1.0;
+                Magazine.Volume = 1.0;
+                Gunpowder.Volume = 1.0;
+                Bullet.Volume = 1.0;
+                Trashbin.Volume = 1.0;
+                Heroine.Volume = 1.0;
+                Katana.Volume = 1.0;
+                Swapper.Volume = 1.0;
+                Hat.Volume = 1.0;
+                PlayMusic(EMusic.Title);
+            });
         }
     }
 
@@ -321,6 +325,6 @@ namespace BSR_Client
         private bool PacketHandled = false;
         private readonly EItem[] ItemStorage = new EItem[8];
         private bool AreItemsStored = false;
-        private readonly SoundLib Sound = new SoundLib();
+        private readonly SoundLib Sound;
     }
 }

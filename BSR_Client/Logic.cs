@@ -7,9 +7,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
 using System.Windows.Shapes;
-using System.Windows.Documents;
-using System.Runtime.Remoting.Messaging;
-using System.Xml.Linq;
 
 namespace BSR_Client
 {

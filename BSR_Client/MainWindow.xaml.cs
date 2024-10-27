@@ -1,17 +1,12 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Net.Sockets;
 using System.Windows.Shapes;
 using System.Windows.Input;
-using System.Threading;
-using System.Runtime.InteropServices;
-using static System.Net.Mime.MediaTypeNames;
-using System.Windows.Media.Animation;
+using System.Threading.Tasks;
 
 namespace BSR_Client
 {
@@ -29,7 +24,7 @@ namespace BSR_Client
             PlayerDisplays = new Button[] { Player1, Player2, Player3, Player4, Player5 };
             SetMenuState(EMenuState.Startup);
             PopulateSettings();
-            Sound.PlayMusic(EMusic.Title);
+            Sound = new SoundLib(this);
         }
 
         private void Client_OnPacketReceived(ClientWorker sender, EPacket id, List<byte> data)
@@ -123,9 +118,13 @@ namespace BSR_Client
                                         if (playername == You)
                                             playername = "You";
                                         string itemlist = "";
-                                        foreach (EItem item in items)
-                                            itemlist += ", " + item.ToString();
-                                        itemlist = itemlist.Substring(2);
+                                        if (items != null)
+                                        {
+                                            foreach (EItem item in items)
+                                                itemlist += ", " + item.ToString();
+                                            itemlist = itemlist.Substring(2);
+                                        }
+                                        else itemlist = "no items";
                                         Announce(string.Format("{0} got {1}", playername, itemlist));
                                     }
                                 }
@@ -352,6 +351,14 @@ namespace BSR_Client
                                 }
                             }
                             break;
+                        case EPacket.EndGame:
+                            {
+                                PacketEndGame packet = new PacketEndGame(data);
+                                SetMenuState(EMenuState.Gameover);
+                                Sound.PlayMusic(EMusic.Gameover);
+                                Winner.Text = packet.GetWinner() + " won!";
+                            }
+                            break;
                     }
                 }
                 finally
@@ -360,7 +367,7 @@ namespace BSR_Client
                 }
             });
             while (!PacketHandled)
-                Thread.Sleep(1);
+                Task.Delay(1).Wait();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

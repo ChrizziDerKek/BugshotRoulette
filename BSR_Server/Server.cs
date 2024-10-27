@@ -368,6 +368,23 @@ namespace Server
             Dealer = null;
         }
 
+        public int GetNumAlivePlayers()
+        {
+            int result = 0;
+            foreach (string player in Players)
+                if (GetHealth(player) > 0)
+                    result++;
+            return result;
+        }
+
+        public string GetWinner()
+        {
+            foreach (string player in Players)
+                if (GetHealth(player) > 0)
+                    return player;
+            return "";
+        }
+
         public string GetBotName() => BotName;
 
         public bool IsBot(string player) => BotName == player;
@@ -972,7 +989,6 @@ namespace Server
                                         bool inverted = session.HasFlag(ERoundFlags.ShotInverted);
                                         session.ResetGlobalFlags();
                                         Broadcast(new PacketUsedItem(user, bullet, inverted, stealtarget), session, "Item usage");
-                                        Thread.Sleep(100);
                                         if (session.GetBulletCount() == 0)
                                         {
                                             session.RoundStart();
@@ -1025,7 +1041,6 @@ namespace Server
                                 case EItem.Magazine:
                                     {
                                         Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
-                                        Thread.Sleep(100);
                                         session.RoundStart(false, true);
                                         Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true), session, "New Round Start");
                                     }
@@ -1141,7 +1156,6 @@ namespace Server
                                 session.RoundStart();
                                 Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
                             }
-                            Thread.Sleep(100);
                             if (session.ShouldSwitchPlayer())
                             {
                                 if (cuffed)
@@ -1152,6 +1166,16 @@ namespace Server
                                 else session.SwitchPlayer();
                             }
                             string nextplayer = session.GetCurrentPlayer();
+                            if (session.GetNumAlivePlayers() == 1)
+                            {
+                                Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                return;
+                            }
+                            while (session.GetHealth(nextplayer) <= 0)
+                            {
+                                session.SwitchPlayer();
+                                nextplayer = session.GetCurrentPlayer();
+                            }
                             bool isbot = session.BotExists() && session.IsBot(nextplayer);
                             if (!isbot)
                                 Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
@@ -1194,13 +1218,11 @@ namespace Server
                             if (packet.GetSettings().BotDealer && !session.IsLocked())
                             {
                                 session.AddBot();
-                                Thread.Sleep(100);
                                 Broadcast(new PacketNewPlayer(session.GetBotName()), session, "Bot Join Sync");
                             }
                             else
                             {
                                 session.RemoveBot();
-                                Thread.Sleep(100);
                                 Broadcast(new PacketRemoveLocalPlayer(session.GetBotName(), null), session, "Bot Local Removal");
                             }
                         }
@@ -1235,7 +1257,11 @@ namespace Server
                                 if (didMigrate)
                                     session.ResetSettings();
                                 if (!destroyed)
+                                {
                                     Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.GetHost() : null), sender, "Local Removal");
+                                    if (session.GetNumAlivePlayers() == 1)
+                                        Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                }
                             }
                             else Console.WriteLine("Disconnected pending Player");
                             Clients.Remove(sender);

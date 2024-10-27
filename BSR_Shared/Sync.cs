@@ -22,6 +22,7 @@ public enum EPacket
     Shoot,
     UseItem,
     UsedItem,
+    EndGame,
 }
 
 public enum EJoinResponse
@@ -129,6 +130,29 @@ public class SettingsData
         for (EItem i = EItem.Nothing + 1; i != EItem.Count; i++)
             EnabledItems.Add(i, i != EItem.Bullet);
     }
+}
+
+class PacketEndGame : Packet
+{
+    private string Winner;
+
+    public override EPacket Id => EPacket.EndGame;
+
+    public PacketEndGame(List<byte> data) => Receive(data);
+
+    public PacketEndGame(string winner)
+    {
+        Winner = winner;
+    }
+
+    public string GetWinner() => Winner;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeStr(ref Winner);
+    }
+
+    public override string ToString() => string.Format("{0}: Winner {1}", Id.ToString(), Winner);
 }
 
 class PacketUsedItem : Packet
@@ -400,6 +424,8 @@ class PacketUsedItem : Packet
                 break;
         }
     }
+
+    public override string ToString() => string.Format("{0}: ...", Id.ToString());
 }
 
 class PacketUseItem : Packet
@@ -553,7 +579,7 @@ class PacketStartRound : Packet
 
     public int GetLives() => Lives;
 
-    public List<EItem> GetGeneratedItems(string player) => Generated[player];
+    public List<EItem> GetGeneratedItems(string player) => Generated.ContainsKey(player) ? Generated[player] : null;
 
     public bool ShouldPlayIntenseTheme() => Intense;
 
@@ -639,7 +665,7 @@ class PacketStartRound : Packet
         }
     }
 
-    public override string ToString() => string.Format("{0} ...", Id.ToString());
+    public override string ToString() => string.Format("{0}: ...", Id.ToString());
 }
 
 class PacketStartGame : Packet
@@ -1040,8 +1066,6 @@ public abstract class Packet
 
     public abstract EPacket Id { get; }
 
-    private static Mutex Lock = new Mutex();
-
     protected void Receive(List<byte> data)
     {
         SyncReader reader = new SyncReader(data, 0);
@@ -1051,28 +1075,26 @@ public abstract class Packet
     public static bool Prepare(List<byte> data, out EPacket id)
     {
         id = default;
-        if (data[0] != '$')
-            return false;
         SyncReader reader = new SyncReader(data, 0);
-        byte dummy = 0;
-        reader.SerializeByte(ref dummy);
+        int dummy = 0;
+        reader.SerializeInt(ref dummy);
+        if (dummy != 0x58244421)
+            return false;
         reader.SerializePacket(ref id);
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 8; i++)
             data.RemoveAt(0);
         return true;
     }
 
     public static void Send(Packet pack, ClientWorker cli)
     {
-        Lock.WaitOne();
         SyncWriter writer = new SyncWriter();
         EPacket temp = pack.Id;
-        byte header = (byte)'$';
-        writer.SerializeByte(ref header);
+        int header = 0x58244421;
+        writer.SerializeInt(ref header);
         writer.SerializePacket(ref temp);
         pack.Serialize(writer);
         cli.Send(writer.Result);
-        Lock.ReleaseMutex();
     }
 }
 
@@ -1134,6 +1156,52 @@ public class ClientWorker : IDisposable
 
     public void Dispose() => Socket?.Close();
 
+    private bool IsMangled(byte[] packet, int header = 0x58244421)
+    {
+        byte[] hb = BitConverter.GetBytes(header);
+        int count = 0;
+        for (int i = 0; i <= packet.Length - hb.Length; i++)
+        {
+            if (packet[i] == hb[0] && packet[i + 1] == hb[1] && packet[i + 2] == hb[2] && packet[i + 3] == hb[3])
+            {
+                count++;
+                if (count > 1)
+                    return true;
+                i += hb.Length - 1;
+            }
+        }
+        return false;
+    }
+
+    private List<List<byte>> Demangle(byte[] packet, int header = 0x58244421)
+    {
+        byte[] hb = BitConverter.GetBytes(header);
+        List<List<byte>> result = new List<List<byte>>();
+        int i = 0;
+        while (i <= packet.Length - hb.Length)
+        {
+            if (packet[i] == hb[0] && packet[i + 1] == hb[1] && packet[i + 2] == hb[2] && packet[i + 3] == hb[3])
+            {
+                if (result.Count > 0)
+                {
+                    int last = result[result.Count - 1].Count;
+                    result[result.Count - 1].AddRange(new ArraySegment<byte>(packet, last, i - last));
+                }
+                result.Add(new List<byte>(hb));
+                i += hb.Length;
+            }
+            else
+            {
+                if (result.Count > 0)
+                    result[result.Count - 1].Add(packet[i]);
+                i++;
+            }
+        }
+        if (result.Count > 0 && i < packet.Length)
+            result[result.Count - 1].AddRange(new ArraySegment<byte>(packet, i, packet.Length - i));
+        return result;
+    }
+
     private void Update()
     {
         byte[] buffer = new byte[0x1000];
@@ -1146,11 +1214,25 @@ public class ClientWorker : IDisposable
                     break;
                 byte[] packet = new byte[received];
                 Array.Copy(buffer, 0, packet, 0, received);
-                List<byte> actualPacket = packet.ToList();
-                if (!Packet.Prepare(actualPacket, out EPacket id))
-                    Console.WriteLine("Ignored invalid Packet");
+                if (!IsMangled(packet))
+                {
+                    List<byte> actualPacket = packet.ToList();
+                    if (!Packet.Prepare(actualPacket, out EPacket id))
+                        Console.WriteLine("Ignored invalid Packet");
+                    else
+                        OnPacketReceived?.Invoke(this, id, actualPacket);
+                }
                 else
-                    OnPacketReceived?.Invoke(this, id, actualPacket);
+                {
+                    List<List<byte>> packets = Demangle(packet);
+                    foreach (List<byte> actualPacket in packets)
+                    {
+                        if (!Packet.Prepare(actualPacket, out EPacket id))
+                            Console.WriteLine("Ignored invalid Packet");
+                        else
+                            OnPacketReceived?.Invoke(this, id, actualPacket);
+                    }
+                }
             }
         }
         catch (IOException) { }
