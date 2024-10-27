@@ -260,7 +260,7 @@ namespace BSR_Client
                 Background1.MediaEnded += Media_Ended;
                 Background2.MediaEnded += Media_Ended;
                 End.MediaEnded += Media_Ended;
-                Task.Delay(500).Wait();
+                Task.Delay(1000).Wait();
                 Empty.Volume = 1.0;
                 Shot.Volume = 1.0;
                 GunpowderShot.Volume = 1.0;

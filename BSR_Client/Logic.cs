@@ -395,12 +395,27 @@ namespace BSR_Client
                 health = 0;
             if (health > GetMaxHealth())
                 health = GetMaxHealth();
-            if (GetHealth(player) == health)
+            int oldhealth = GetHealth(player);
+            if (oldhealth == health)
                 return;
             for (int i = 0; i < Players.Count; i++)
             {
                 if (Players[i] == player)
                 {
+                    if (oldhealth > health)
+                        PopulatePlayerSlot(PlayerDisplays[i], player, true);
+                    if (health == 0)
+                    {
+                        for (int j = 0; j < PlayerDisplays.Length; j++)
+                        {
+                            if (GetPlayerName(j) == player)
+                            {
+                                PlayerDisplays[j].Visibility = Visibility.Hidden;
+                                HealthBars[j].Visibility = Visibility.Hidden;
+                                break;
+                            }
+                        }
+                    }
                     HealthBars[i].Value = health;
                     break;
                 }

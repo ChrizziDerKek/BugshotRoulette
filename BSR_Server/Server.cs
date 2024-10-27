@@ -385,6 +385,8 @@ namespace Server
             return "";
         }
 
+        public bool IsDead(string player) => GetHealth(player) <= 0;
+
         public string GetBotName() => BotName;
 
         public bool IsBot(string player) => BotName == player;
@@ -1117,6 +1119,11 @@ namespace Server
                                 return;
                             }
                             string target = packet.GetTarget();
+                            if (session.IsDead(target))
+                            {
+                                Console.WriteLine("Rejected because target is dead");
+                                return;
+                            }
                             EBullet type = session.PopBullet();
                             if (actualsender == target && type == EBullet.Blank)
                                 session.SetAgain();
