@@ -368,6 +368,21 @@ namespace Server
             Dealer = null;
         }
 
+        public void ResetGame()
+        {
+            CurrentPlayer = 0;
+            PlayerItems.Clear();
+            ActualBullets.Clear();
+            DisplayedBullets.Clear();
+            StartLives = 0;
+            CanGoAgain = false;
+            PlayerHealth.Clear();
+            LastGeneratedItems.Clear();
+            NextRoundFlags = ERoundFlags.None;
+            LastUsedItem = EItem.Nothing;
+            PlayerFlags.Clear();
+        }
+
         public int GetNumAlivePlayers()
         {
             int result = 0;
@@ -470,7 +485,7 @@ namespace Server
 
         public Random GetRNG() => RNG;
 
-        public int GetHealth(string player) => PlayerHealth[player];
+        public int GetHealth(string player) => PlayerHealth.ContainsKey(player) ? PlayerHealth[player] : 0;
 
         public void SetHealth(string player, int health) => PlayerHealth[player] = health;
 
@@ -1264,6 +1279,7 @@ namespace Server
                                 return;
                             }
                             Session session = Sessions[sender.GetSession()];
+                            session.ResetGame();
                             session.Lock();
                             session.SetFirstPlayer();
                             Broadcast(packet, sender, "Game Start");

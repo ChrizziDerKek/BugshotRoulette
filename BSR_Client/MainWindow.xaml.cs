@@ -40,6 +40,7 @@ namespace BSR_Client
                             {
                                 PacketStartGame packet = new PacketStartGame(data);
                                 Console.WriteLine(packet.ToString());
+                                ResetState();
                                 SetMenuState(EMenuState.Gamestart);
                                 GameStarted = true;
                             }
@@ -51,6 +52,8 @@ namespace BSR_Client
                                 if (packet.DidSucceed())
                                 {
                                     Host = packet.GetHost();
+                                    if (Host == You)
+                                        RestartGame.Visibility = Visibility.Visible;
                                     if (packet.GetSession() != Session)
                                     {
                                         Fatal("Session id mismatch");
@@ -96,7 +99,7 @@ namespace BSR_Client
                                 }
                                 UpdatePlayerlist();
                                 if (IsHost() && didMigrate)
-                                    SwitchToHostMenu();
+                                    BecomeHost();
                             }
                             break;
                         case EPacket.StartRound:
@@ -373,6 +376,7 @@ namespace BSR_Client
                                 PacketEndGame packet = new PacketEndGame(data);
                                 SetMenuState(EMenuState.Gameover);
                                 Sound.PlayMusic(EMusic.Gameover);
+                                SetFlag(EFlags.GameEnded);
                                 Winner.Text = packet.GetWinner() + " won!";
                             }
                             break;
@@ -437,7 +441,11 @@ namespace BSR_Client
                     break;
                 case "RestartGame":
                     {
-
+                        if (!IsHost() || !IsFlagSet(EFlags.GameEnded))
+                            return;
+                        SetMenuState(EMenuState.Host);
+                        Sound.PlayMusic(EMusic.Title);
+                        ResetState();
                     }
                     break;
                 case "StartGame":

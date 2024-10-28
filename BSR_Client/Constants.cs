@@ -38,6 +38,7 @@ namespace BSR_Client
         HandcuffUsageBlocked = 1 << 4,
         ItemUsageBlockedCompletely = 1 << 5,
         AdrenalinePending = 1 << 6,
+        GameEnded = 1 << 7,
     }
 
     public class SettingsItem

@@ -12,6 +12,19 @@ namespace BSR_Client
 {
     public partial class MainWindow
     {
+        public void ResetState()
+        {
+            GameStarted = false;
+            Flags = EFlags.None;
+            AreItemsStored = false;
+            LastUsedItem = EItem.Nothing;
+            for (int i = 0; i < PlayerDisplays.Length; i++)
+            {
+                PlayerDisplays[i].Visibility = Visibility.Visible;
+                HealthBars[i].Visibility = Visibility.Visible;
+            }
+        }
+
         public void Fatal(string str, bool exit = true)
         {
             MessageBox.Show(str, "Error");
@@ -324,7 +337,7 @@ namespace BSR_Client
             }
         }
 
-        public void SwitchToHostMenu()
+        public void BecomeHost()
         {
             if (GameStarted)
                 return;
@@ -332,6 +345,7 @@ namespace BSR_Client
             UpdatePlayerlist();
             HostUsername.Text = Username.Text;
             Lobby.Text = LobbyJoin.Text;
+            RestartGame.Visibility = Visibility.Visible;
         }
 
         public void UpdatePlayerlist()
