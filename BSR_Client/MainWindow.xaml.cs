@@ -482,13 +482,9 @@ namespace BSR_Client
                                 SetFlag(EFlags.UsingAdrenaline | EFlags.UsingPlayerItem);
                                 break;
                             case EItem.Heroine:
-                                SetFlag(EFlags.UsingHeroine | EFlags.UsingPlayerItem);
-                                break;
                             case EItem.Katana:
-                                SetFlag(EFlags.UsingKatana | EFlags.UsingPlayerItem);
-                                break;
                             case EItem.Swapper:
-                                SetFlag(EFlags.UsingSwapper | EFlags.UsingPlayerItem);
+                                SetFlag(EFlags.UsingPlayerItem);
                                 break;
                         }
                         if (IsFlagSet(EFlags.NextItemTrashed))
@@ -521,14 +517,6 @@ namespace BSR_Client
                         {
                             string target = GetPlayerFromSlot(action);
                             EItem item = LastUsedItem;
-                            //if (IsFlagSet(EFlags.UsingAdrenaline))
-                            //    item = EItem.Adrenaline;
-                            //else if (IsFlagSet(EFlags.UsingHeroine))
-                            //    item = EItem.Heroine;
-                            //else if (IsFlagSet(EFlags.UsingKatana))
-                            //    item = EItem.Katana;
-                            //else if (IsFlagSet(EFlags.UsingSwapper))
-                            //    item = EItem.Swapper;
                             if (item == EItem.Adrenaline && IsFlagSet(EFlags.AdrenalinePending))
                             {
                                 ResetFlag(EFlags.AdrenalinePending);

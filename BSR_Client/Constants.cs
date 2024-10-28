@@ -33,14 +33,11 @@ namespace BSR_Client
         None = 0,
         Shooting = 1 << 0,
         UsingPlayerItem = 1 << 1,
-        UsingAdrenaline = 1 << 2,
-        UsingHeroine = 1 << 3,
-        UsingKatana = 1 << 4,
-        UsingSwapper = 1 << 5,
-        NextItemTrashed = 1 << 6,
-        HandcuffUsageBlocked = 1 << 7,
-        ItemUsageBlockedCompletely = 1 << 8,
-        AdrenalinePending = 1 << 9,
+        UsingAdrenaline = 1 << 2,      
+        NextItemTrashed = 1 << 3,
+        HandcuffUsageBlocked = 1 << 4,
+        ItemUsageBlockedCompletely = 1 << 5,
+        AdrenalinePending = 1 << 6,
     }
 
     public class SettingsItem
