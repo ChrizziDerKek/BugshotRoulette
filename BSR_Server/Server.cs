@@ -1041,7 +1041,7 @@ namespace Server
                                             return;
                                         }
                                         session.SetFlag(ERoundFlags.AgainBecauseCuffed);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Cigarettes:
@@ -1054,7 +1054,7 @@ namespace Server
                                 case EItem.Saw:
                                     {
                                         session.SetFlag(ERoundFlags.ShotgunSawedOff);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Magnifying:
@@ -1083,7 +1083,7 @@ namespace Server
                                         else
                                             session.SetFlag(ERoundFlags.ShotInverted);
                                         session.InvertBullet();
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Medicine:
@@ -1121,21 +1121,21 @@ namespace Server
                                     break;
                                 case EItem.Magazine:
                                     {
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                         session.RoundStart(false, true);
-                                        Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true, shouldblock), session, "New Round Start");
+                                        Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true), session, "New Round Start");
                                     }
                                     break;
                                 case EItem.Gunpowder:
                                     {
                                         session.SetFlag(ERoundFlags.ShotGunpowdered);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Bullet:
                                     {
                                         session.PushBullet();
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Trashbin:
@@ -1181,12 +1181,12 @@ namespace Server
                                     }
                                     break;
                                 case EItem.Hat:
-                                    Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                    Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     break;
                                 case EItem.Snus:
                                     {
                                         session.SetFlag(ERoundFlags.RepeatedHealing, user);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
                             }
