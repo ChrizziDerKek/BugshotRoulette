@@ -10,7 +10,6 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
-using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -574,7 +573,6 @@ namespace Server
         public void RoundStart(bool initial = false, bool noitems = false)
         {
             int nitems = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
-            nitems = 7;
             GenerateBullets();
             if (!noitems)
             {
@@ -673,32 +671,7 @@ namespace Server
                         item = EItem.Nothing;
                         break;
                     }
-                    //item = (EItem)RNG.Next(start, end);
-                    item = EItem.Nothing;
-                    switch (i)
-                    {
-                        case 0:
-                            item = EItem.Adrenaline;
-                            break;
-                        case 1:
-                            item = EItem.Magnifying;
-                            break;
-                        case 2:
-                            item = EItem.Trashbin;
-                            break;
-                        case 3:
-                            item = EItem.Swapper;
-                            break;
-                        case 4:
-                            item = EItem.Heroine;
-                            break;
-                        case 5:
-                            item = EItem.Katana;
-                            break;
-                        default:
-                            item = (EItem)RNG.Next(start, end);
-                            break;
-                    }
+                    item = (EItem)RNG.Next(start, end);
                     if (bypasslimits && (item == EItem.Trashbin || item == GetLastUsedItem()))
                     {
                         attempts--;
@@ -711,16 +684,16 @@ namespace Server
                         skipped = true;
                         continue;
                     }
-                    //if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
-                    //{
-                    //    item = (EItem)RNG.Next(start, end);
-                    //    if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
-                    //    {
-                    //        attempts--;
-                    //        skipped = true;
-                    //        continue;
-                    //    }
-                    //}
+                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
+                    {
+                        item = (EItem)RNG.Next(start, end);
+                        if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
+                        {
+                            attempts--;
+                            skipped = true;
+                            continue;
+                        }
+                    }
                 }
                 while (skipped || (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(player, item) >= limit && !bypasslimits));
                 if (item == EItem.Nothing)
