@@ -1347,8 +1347,31 @@ namespace Server
                                 {
                                     Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.GetHost() : null), sender, "Local Removal");
                                     if (session.GetNumAlivePlayers() == 1)
+                                    {
                                         Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        return;
+                                    }
                                 }
+                                session.ShouldSwitchPlayer();
+                                session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
+                                session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                session.SwitchPlayer();
+                                string nextplayer = session.GetCurrentPlayer();
+                                if (session.GetNumAlivePlayers() == 1)
+                                {
+                                    Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                    return;
+                                }
+                                while (session.GetHealth(nextplayer) <= 0)
+                                {
+                                    session.SwitchPlayer();
+                                    nextplayer = session.GetCurrentPlayer();
+                                }
+                                bool isbot = session.BotExists() && session.IsBot(nextplayer);
+                                if (!isbot)
+                                    Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                                else
+                                    session.GetBot().BotTurn();
                             }
                             else Console.WriteLine("Disconnected pending Player");
                             Clients.Remove(sender);
