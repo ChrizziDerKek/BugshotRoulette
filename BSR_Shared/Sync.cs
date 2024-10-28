@@ -23,6 +23,7 @@ public enum EPacket
     UseItem,
     UsedItem,
     EndGame,
+    RoundHeal,
 }
 
 public enum EJoinResponse
@@ -64,6 +65,7 @@ public enum EItem
     Katana,
     Swapper,
     Hat,
+    Snus,
     Count,
 }
 
@@ -82,6 +84,7 @@ public enum ERoundFlags
     StealingTarget = 1 << 9,
     HasUsedAnything = 1 << 10,
     AllowOnce = 1 << 11,
+    RepeatedHealing = 1 << 12,
 }
 
 public class SettingsData
@@ -132,6 +135,55 @@ public class SettingsData
         for (EItem i = EItem.Nothing + 1; i != EItem.Count; i++)
             EnabledItems.Add(i, i != EItem.Bullet);
     }
+}
+
+class PacketRoundHeal : Packet
+{
+    private List<string> Targets;
+    private int Amount;
+
+    public override EPacket Id => EPacket.RoundHeal;
+
+    public PacketRoundHeal(List<byte> data) => Receive(data);
+
+    public PacketRoundHeal(List<string> targets, int amount)
+    {
+        Targets = targets;
+        Amount = amount;
+    }
+
+    public List<string> GetTargets() => Targets;
+
+    public int GetAmount() => Amount;
+
+    protected override void Serialize(ISync sync)
+    {
+        sync.SerializeInt(ref Amount);
+        if (Targets == null)
+        {
+            Targets = new List<string>();
+            int count = 0;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                string temp = "";
+                sync.SerializeStr(ref temp);
+                Targets.Add(temp);
+            }
+        }
+        else
+        {
+            int count = Targets.Count;
+            sync.SerializeInt(ref count);
+            for (int i = 0; i < count; i++)
+            {
+                string temp = Targets[i];
+                sync.SerializeStr(ref temp);
+            }
+        }
+    }
+
+    public override string ToString() => string.Format("{0}: Targets {1}, Amount {2}", Id.ToString(), Targets.Count, Amount);
 }
 
 class PacketEndGame : Packet

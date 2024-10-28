@@ -307,6 +307,7 @@ namespace BSR_Client
             { EItem.Katana, "Select a player to cut their fingers off\nThey can only use 1 item in their next round" },
             { EItem.Swapper, "Swaps your items with the ones with the selected player" },
             { EItem.Hat, "Hides the bullets for every player" },
+            { EItem.Snus, "Heals 2 health every round until you get shot" },
             { EItem.Count, null },
         };
 

@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace BSR_Client
 {
@@ -378,6 +379,14 @@ namespace BSR_Client
                                 Sound.PlayMusic(EMusic.Gameover);
                                 SetFlag(EFlags.GameEnded);
                                 Winner.Text = packet.GetWinner() + " won!";
+                            }
+                            break;
+                        case EPacket.RoundHeal:
+                            {
+                                PacketRoundHeal packet = new PacketRoundHeal(data);
+                                List<string> targets = packet.GetTargets();
+                                foreach (string target in targets)
+                                    UpdateHealth(GetHealth(target) + packet.GetAmount(), target);
                             }
                             break;
                     }

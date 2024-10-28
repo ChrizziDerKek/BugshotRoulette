@@ -487,7 +487,16 @@ namespace Server
 
         public int GetHealth(string player) => PlayerHealth.ContainsKey(player) ? PlayerHealth[player] : 0;
 
-        public void SetHealth(string player, int health) => PlayerHealth[player] = health;
+        public void SetHealth(string player, int health)
+        {
+            if (!PlayerHealth.ContainsKey(player))
+                return;
+            PlayerHealth[player] = health;
+            if (PlayerHealth[player] < 0)
+                PlayerHealth[player] = 0;
+            if (PlayerHealth[player] > GetMaxHealth())
+                PlayerHealth[player] = GetMaxHealth();
+        }
 
         public EBullet PopBullet()
         {
@@ -583,6 +592,15 @@ namespace Server
             ResetGlobalFlags(true);
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
             return CurrentPlayer;
+        }
+
+        public List<string> GetRepeatedHealing()
+        {
+            List<string> result = new List<string>();
+            foreach (string player in Players)
+                if (HasFlag(ERoundFlags.RepeatedHealing, player))
+                    result.Add(player);
+            return result;
         }
 
         public void RoundStart(bool initial = false, bool noitems = false)
@@ -1165,6 +1183,12 @@ namespace Server
                                 case EItem.Hat:
                                     Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     break;
+                                case EItem.Snus:
+                                    {
+                                        session.SetFlag(ERoundFlags.RepeatedHealing, user);
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
+                                    }
+                                    break;
                             }
                         }
                         break;
@@ -1221,6 +1245,8 @@ namespace Server
                             if (health < 0)
                                 health = 0;
                             session.SetHealth(target, health);
+                            if (damage > 0)
+                                session.ResetFlag(ERoundFlags.RepeatedHealing, target);
                             ERoundFlags flags = session.GetRoundFlags();
                             if (backfired)
                                 flags |= ERoundFlags.GunpowderBackfired;
@@ -1249,7 +1275,17 @@ namespace Server
                                     session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
                                     session.SetFlag(ERoundFlags.HandcuffsJustUsed);
                                 }
-                                else session.SwitchPlayer();
+                                else
+                                {
+                                    session.SwitchPlayer();
+                                    List<string> heal = session.GetRepeatedHealing();
+                                    if (heal.Count > 0)
+                                    {
+                                        foreach (string player in heal)
+                                            session.SetHealth(player, session.GetHealth(player) + 2);
+                                        Broadcast(new PacketRoundHeal(heal, 2), session, "Round heal");
+                                    }
+                                }
                             }
                             string nextplayer = session.GetCurrentPlayer();
                             if (session.GetNumAlivePlayers() == 1)
