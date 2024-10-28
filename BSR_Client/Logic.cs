@@ -163,7 +163,7 @@ namespace BSR_Client
             }
         }
 
-        public void EnableShooting() => Shoot.IsEnabled = true;
+        public void EnableShooting(bool enabled) => Shoot.IsEnabled = enabled;
 
         public void ResetPlayerSlots()
         {

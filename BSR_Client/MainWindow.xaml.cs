@@ -468,6 +468,7 @@ namespace BSR_Client
                         {
                             ResetFlag(EFlags.UsingAdrenaline);
                             RestoreItems();
+                            EnableShooting(true);
                         }
                         switch (item)
                         {
@@ -526,6 +527,8 @@ namespace BSR_Client
                             ResetPlayerItemFlags();
                             SetPlayersInteractable(false, true);
                             SetActive(true);
+                            if (item == EItem.Adrenaline)
+                                EnableShooting(false);
                         }
                     }
                     break;
