@@ -311,7 +311,7 @@ namespace BSR_Client
                                         break;
                                     case EItem.Adrenaline:
                                         {
-                                            if (!IsFlagSet(EFlags.UsingAdrenaline))
+                                            if (!IsFlagSet(EFlags.UsingAdrenaline) && !IsFlagSet(EFlags.AdrenalinePending))
                                                 return;
                                             StoreItems();
                                             if (packet.HasItems())
@@ -320,7 +320,11 @@ namespace BSR_Client
                                                 OverrideItems(items);
                                                 LockItem(EItem.Adrenaline);
                                             }
-                                            else Announce("Nothing to steal");
+                                            else
+                                            {
+                                                Announce("Nothing to steal");
+                                                RestoreItems();
+                                            }
                                         }
                                         break;
                                     case EItem.Trashbin:
@@ -464,9 +468,11 @@ namespace BSR_Client
                             return;
                         SetPlayersInteractable(false, true);
                         EItem item = UseItem(action);
-                        if (IsFlagSet(EFlags.UsingAdrenaline))
+                        LastUsedItem = item;
+                        if (IsFlagSet(EFlags.UsingAdrenaline) || IsFlagSet(EFlags.AdrenalinePending))
                         {
                             ResetFlag(EFlags.UsingAdrenaline);
+                            ResetFlag(EFlags.AdrenalinePending);
                             RestoreItems();
                             EnableShooting(true);
                         }
@@ -511,24 +517,34 @@ namespace BSR_Client
                             ResetPlayerItemFlags();
                             Packet.Send(new PacketShoot(You, target), Sync);
                         }
-                        else if (IsFlagSet(EFlags.UsingPlayerItem))
+                        else if (IsFlagSet(EFlags.UsingPlayerItem) || IsFlagSet(EFlags.AdrenalinePending))
                         {
                             string target = GetPlayerFromSlot(action);
-                            EItem item = EItem.Nothing;
-                            if (IsFlagSet(EFlags.UsingAdrenaline))
-                                item = EItem.Adrenaline;
-                            else if (IsFlagSet(EFlags.UsingHeroine))
-                                item = EItem.Heroine;
-                            else if (IsFlagSet(EFlags.UsingKatana))
-                                item = EItem.Katana;
-                            else if (IsFlagSet(EFlags.UsingSwapper))
-                                item = EItem.Swapper;
+                            EItem item = LastUsedItem;
+                            //if (IsFlagSet(EFlags.UsingAdrenaline))
+                            //    item = EItem.Adrenaline;
+                            //else if (IsFlagSet(EFlags.UsingHeroine))
+                            //    item = EItem.Heroine;
+                            //else if (IsFlagSet(EFlags.UsingKatana))
+                            //    item = EItem.Katana;
+                            //else if (IsFlagSet(EFlags.UsingSwapper))
+                            //    item = EItem.Swapper;
+                            if (item == EItem.Adrenaline && IsFlagSet(EFlags.AdrenalinePending))
+                            {
+                                ResetFlag(EFlags.AdrenalinePending);
+                                ResetFlag(EFlags.UsingAdrenaline);
+                                RestoreItems();
+                            }
                             Packet.Send(new PacketUseItem(You, item, target), Sync);
                             ResetPlayerItemFlags();
                             SetPlayersInteractable(false, true);
                             SetActive(true);
                             if (item == EItem.Adrenaline)
+                            {
                                 EnableShooting(false);
+                                SetFlag(EFlags.AdrenalinePending);
+                                SetPlayersInteractable(true, false, true);
+                            }
                         }
                     }
                     break;

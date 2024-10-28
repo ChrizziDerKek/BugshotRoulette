@@ -150,7 +150,7 @@ namespace BSR_Client
                 (image as Image).Source = new BitmapImage(new Uri(angry ? "textures/dealer2.png" : "textures/dealer1.png", UriKind.Relative));
         }
 
-        public void SetPlayersInteractable(bool interactable, bool includeself)
+        public void SetPlayersInteractable(bool interactable, bool includeself, bool withitems = false)
         {
             if (interactable)
                 SetActive(false);
@@ -160,6 +160,11 @@ namespace BSR_Client
                     continue;
                 if (DoesPlayerExist(i))
                     PlayerDisplays[i].IsEnabled = interactable;
+            }
+            if (withitems)
+            {
+                foreach (Button it in ItemDisplays)
+                    it.IsEnabled = interactable;
             }
         }
 
@@ -582,6 +587,8 @@ namespace BSR_Client
             for (int i = 0; i < ItemStorage.Length; i++)
                 PutItemInSlot(ItemDisplays[i], ItemStorage[i]);
             AreItemsStored = false;
+            foreach (Button itemd in ItemDisplays)
+                itemd.IsEnabled = true;
         }
 
         public void SetMenuState(EMenuState state)

@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
+using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -573,7 +574,7 @@ namespace Server
         public void RoundStart(bool initial = false, bool noitems = false)
         {
             int nitems = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
-            nitems = 6;
+            nitems = 7;
             GenerateBullets();
             if (!noitems)
             {
@@ -693,6 +694,9 @@ namespace Server
                             break;
                         case 5:
                             item = EItem.Katana;
+                            break;
+                        default:
+                            item = (EItem)RNG.Next(start, end);
                             break;
                     }
                     if (bypasslimits && (item == EItem.Trashbin || item == GetLastUsedItem()))
@@ -946,7 +950,22 @@ namespace Server
                                 session.ResetFlag(ERoundFlags.StealingItems, user);
                             if (stealing && item == EItem.Adrenaline)
                             {
-                                Console.WriteLine("Rejected because it's not possible to steal adrenaline");
+                                if (!session.IsPlayerConnected(target))
+                                {
+                                    Console.WriteLine("Rejected because of invalid target");
+                                    return;
+                                }
+                                foreach (string player in session.GetPlayers())
+                                {
+                                    if (session.HasFlag(ERoundFlags.StealingTarget, player))
+                                    {
+                                        session.ResetFlag(ERoundFlags.StealingTarget, player);
+                                        break;
+                                    }
+                                }
+                                session.SetFlag(ERoundFlags.StealingItems, user);
+                                session.SetFlag(ERoundFlags.StealingTarget, target);
+                                Broadcast(new PacketUsedItem(user, target, session.GetItems(target)), session, "Item usage");
                                 return;
                             }
                             if (!session.PlayerHasItem(user, item) && !stealing)

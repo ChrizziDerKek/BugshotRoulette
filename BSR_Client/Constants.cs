@@ -40,6 +40,7 @@ namespace BSR_Client
         NextItemTrashed = 1 << 6,
         HandcuffUsageBlocked = 1 << 7,
         ItemUsageBlockedCompletely = 1 << 8,
+        AdrenalinePending = 1 << 9,
     }
 
     public class SettingsItem
@@ -325,6 +326,7 @@ namespace BSR_Client
         private bool PacketHandled = false;
         private readonly EItem[] ItemStorage = new EItem[8];
         private bool AreItemsStored = false;
-        private readonly SoundLib Sound;
+        private readonly SoundLib Sound = null;
+        private EItem LastUsedItem = EItem.Nothing;
     }
 }
