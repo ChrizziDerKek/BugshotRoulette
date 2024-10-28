@@ -341,6 +341,7 @@ namespace Server
             { EItem.Katana, 1 },
             { EItem.Swapper, 1 },
             { EItem.Hat, 1 },
+            { EItem.Snus, 1 },
             { EItem.Count, 0 },
         };
 
