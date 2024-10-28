@@ -80,6 +80,8 @@ public enum ERoundFlags
     HasKatanaEffect = 1 << 7,
     StealingItems = 1 << 8,
     StealingTarget = 1 << 9,
+    HasUsedAnything = 1 << 10,
+    AllowOnce = 1 << 11,
 }
 
 public class SettingsData
@@ -171,12 +173,13 @@ class PacketUsedItem : Packet
     private string StolenFrom;
     private bool Stealing;
     private EItem[] OtherItems;
+    private bool ControlsDisabled;
 
     public override EPacket Id => EPacket.UsedItem;
 
     public PacketUsedItem(List<byte> data) => Receive(data);
 
-    public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing)
+    public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = item;
@@ -192,9 +195,10 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, string target, EItem[] senderitems, EItem[] targetitems, string stolenfrom = null)
+    public PacketUsedItem(string sender, string target, EItem[] senderitems, EItem[] targetitems, string stolenfrom = null, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = EItem.Swapper;
@@ -210,9 +214,10 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = targetitems;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, string target, EItem[] items)
+    public PacketUsedItem(string sender, string target, EItem[] items, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = EItem.Adrenaline;
@@ -228,9 +233,10 @@ class PacketUsedItem : Packet
         StolenFrom = null;
         Stealing = false;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, string target, EItem item, string stolenfrom = null)
+    public PacketUsedItem(string sender, string target, EItem item, string stolenfrom = null, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = item;
@@ -246,9 +252,10 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, int healed, bool cigs, string stolenfrom = null)
+    public PacketUsedItem(string sender, int healed, bool cigs, string stolenfrom = null, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = cigs ? EItem.Cigarettes : EItem.Medicine;
@@ -264,9 +271,10 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, EBullet bullet, string stolenfrom = null, int index = 0)
+    public PacketUsedItem(string sender, EBullet bullet, string stolenfrom = null, int index = 0, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = index == 0 ? EItem.Magnifying : EItem.Phone;
@@ -282,9 +290,10 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
-    public PacketUsedItem(string sender, EBullet bullet, bool inverted, string stolenfrom = null)
+    public PacketUsedItem(string sender, EBullet bullet, bool inverted, string stolenfrom = null, bool controlsdisabled = false)
     {
         Sender = sender;
         Item = EItem.Beer;
@@ -300,6 +309,7 @@ class PacketUsedItem : Packet
         StolenFrom = stolenfrom;
         Stealing = stolenfrom != null;
         OtherItems = null;
+        ControlsDisabled = controlsdisabled;
     }
 
     public string GetSender() => Sender;
@@ -332,6 +342,8 @@ class PacketUsedItem : Packet
 
     public EItem[] GetOtherItems() => OtherItems;
 
+    public bool AreControlsDisabled() => ControlsDisabled;
+
     protected override void Serialize(ISync sync)
     {
         int item = (int)Item;
@@ -341,6 +353,7 @@ class PacketUsedItem : Packet
         sync.SerializeBool(ref Trashed);
         sync.SerializeBool(ref HasTarget);
         sync.SerializeBool(ref Stealing);
+        sync.SerializeBool(ref ControlsDisabled);
         if (Trashed)
         {
             item = (int)NewItem;

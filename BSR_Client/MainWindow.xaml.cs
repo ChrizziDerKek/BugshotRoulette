@@ -251,6 +251,9 @@ namespace BSR_Client
                                         }
                                     }
                                 }
+                                bool disabled = packet.AreControlsDisabled();
+                                if (disabled && shouldapply)
+                                    BlockItems();
                                 if (trashed)
                                 {
                                     if (shouldapply)
@@ -344,6 +347,9 @@ namespace BSR_Client
                                         }
                                         break;
                                     case EItem.Katana:
+                                        if (!shouldtarget)
+                                            return;
+                                        Announce("You can only use 1 Item next Round");
                                         break;
                                     case EItem.Swapper:
                                         {
@@ -494,10 +500,9 @@ namespace BSR_Client
                             return;
                         }
                         if (IsFlagSet(EFlags.UsingPlayerItem))
-                        {
                             SetPlayersInteractable(true, false);
-                        }
-                        else Packet.Send(new PacketUseItem(You, item), Sync);
+                        else
+                            Packet.Send(new PacketUseItem(You, item), Sync);
                     }
                     break;
                 case "Player1":

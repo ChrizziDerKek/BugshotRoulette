@@ -711,16 +711,16 @@ namespace Server
                         skipped = true;
                         continue;
                     }
-                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
-                    {
-                        item = (EItem)RNG.Next(start, end);
-                        if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
-                        {
-                            attempts--;
-                            skipped = true;
-                            continue;
-                        }
-                    }
+                    //if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
+                    //{
+                    //    item = (EItem)RNG.Next(start, end);
+                    //    if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
+                    //    {
+                    //        attempts--;
+                    //        skipped = true;
+                    //        continue;
+                    //    }
+                    //}
                 }
                 while (skipped || (ItemLimits.TryGetValue(item, out int limit) && GetItemCount(player, item) >= limit && !bypasslimits));
                 if (item == EItem.Nothing)
@@ -948,6 +948,11 @@ namespace Server
                             bool stealing = session.HasFlag(ERoundFlags.StealingItems, user);
                             if (stealing)
                                 session.ResetFlag(ERoundFlags.StealingItems, user);
+                            if (session.HasFlag(ERoundFlags.HasHeroineEffect, user))
+                            {
+                                Console.WriteLine("Rejected because of Heroine");
+                                return;
+                            }
                             if (stealing && item == EItem.Adrenaline)
                             {
                                 if (!session.IsPlayerConnected(target))
@@ -997,12 +1002,29 @@ namespace Server
                             session.RemoveItem(removetarget, item);
                             EItem last = session.GetLastUsedItem();
                             session.SetLastUsedItem(item);
+                            bool once = session.HasFlag(ERoundFlags.AllowOnce);
                             if (last == EItem.Trashbin)
                             {
                                 EItem replacement = session.GenerateItems(user, 1, false, true);
-                                Broadcast(new PacketUsedItem(user, item, stealtarget, true, replacement), session, "Item trashed");
+                                Broadcast(new PacketUsedItem(user, item, stealtarget, true, replacement, false), session, "Item trashed");
+                                session.SetFlag(ERoundFlags.AllowOnce);
                                 return;
                             }
+                            if (!once && session.HasFlag(ERoundFlags.HasKatanaEffect, user) && session.HasFlag(ERoundFlags.HasUsedAnything, user))
+                            {
+                                Console.WriteLine("Rejected because of Katana");
+                                return;
+                            }
+                            if (once)
+                                session.ResetFlag(ERoundFlags.AllowOnce);
+                            bool shouldblock = false;
+                            if (session.HasFlag(ERoundFlags.HasKatanaEffect, user) && !session.HasFlag(ERoundFlags.HasUsedAnything, user) && item != EItem.Adrenaline)
+                            {
+                                session.SetFlag(ERoundFlags.HasUsedAnything, user);
+                                shouldblock = true;
+                            }
+                            if (once)
+                                shouldblock = item != EItem.Adrenaline;
                             switch (item)
                             {
                                 case EItem.Handcuffs:
@@ -1013,26 +1035,26 @@ namespace Server
                                             return;
                                         }
                                         session.SetFlag(ERoundFlags.AgainBecauseCuffed);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Cigarettes:
                                     {
                                         int health = session.GetHealth(user);
                                         session.SetHealth(user, health + 1);
-                                        Broadcast(new PacketUsedItem(user, 1, true, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, 1, true, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Saw:
                                     {
                                         session.SetFlag(ERoundFlags.ShotgunSawedOff);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Magnifying:
                                     {
                                         EBullet bullet = session.GetNextBullet();
-                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget), session, "Item usage");
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget, 0, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Beer:
@@ -1040,7 +1062,7 @@ namespace Server
                                         EBullet bullet = session.PopBullet();
                                         bool inverted = session.HasFlag(ERoundFlags.ShotInverted);
                                         session.ResetGlobalFlags();
-                                        Broadcast(new PacketUsedItem(user, bullet, inverted, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, bullet, inverted, stealtarget, shouldblock), session, "Item usage");
                                         if (session.GetBulletCount() == 0)
                                         {
                                             session.RoundStart();
@@ -1055,7 +1077,7 @@ namespace Server
                                         else
                                             session.SetFlag(ERoundFlags.ShotInverted);
                                         session.InvertBullet();
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Medicine:
@@ -1065,7 +1087,7 @@ namespace Server
                                         if (session.GetRNG().Next(0, 2) == 0)
                                             modifier = -1;
                                         session.SetHealth(user, health + modifier);
-                                        Broadcast(new PacketUsedItem(user, modifier, false, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, modifier, false, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Phone:
@@ -1075,7 +1097,7 @@ namespace Server
                                         if (bullets.Count > 1)
                                             index = session.GetRNG().Next(1, bullets.Count);
                                         EBullet bullet = index == -1 ? EBullet.Undefined : bullets[index];
-                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget, index), session, "Item usage");
+                                        Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget, index, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Adrenaline:
@@ -1087,33 +1109,34 @@ namespace Server
                                         }
                                         session.SetFlag(ERoundFlags.StealingItems, user);
                                         session.SetFlag(ERoundFlags.StealingTarget, target);
-                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(target)), session, "Item usage");
+                                        session.SetFlag(ERoundFlags.AllowOnce);
+                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(target), shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Magazine:
                                     {
                                         Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
                                         session.RoundStart(false, true);
-                                        Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true), session, "New Round Start");
+                                        Broadcast(new PacketStartRound(session.GetBullets(true), null, null, true, shouldblock), session, "New Round Start");
                                     }
                                     break;
                                 case EItem.Gunpowder:
                                     {
                                         session.SetFlag(ERoundFlags.ShotGunpowdered);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Bullet:
                                     {
                                         session.PushBullet();
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Trashbin:
                                     {
                                         if (session.GetItemCount(user) <= 0)
                                             session.SetLastUsedItem(last);
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, false), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Heroine:
@@ -1125,10 +1148,20 @@ namespace Server
                                         }
                                         if (!session.HasFlag(ERoundFlags.HasHeroineEffect, target))
                                             session.SetFlag(ERoundFlags.HasHeroineEffect, target);
-                                        Broadcast(new PacketUsedItem(user, target, item, stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, target, item, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Katana:
+                                    {
+                                        if (!session.IsPlayerConnected(target))
+                                        {
+                                            Console.WriteLine("Rejected because of invalid target");
+                                            return;
+                                        }
+                                        if (!session.HasFlag(ERoundFlags.HasKatanaEffect, target))
+                                            session.SetFlag(ERoundFlags.HasKatanaEffect, target);
+                                        Broadcast(new PacketUsedItem(user, target, item, stealtarget, shouldblock), session, "Item usage");
+                                    }
                                     break;
                                 case EItem.Swapper:
                                     {
@@ -1138,11 +1171,11 @@ namespace Server
                                             return;
                                         }
                                         session.SwapItems(user, target);
-                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(user), session.GetItems(target), stealtarget), session, "Item usage");
+                                        Broadcast(new PacketUsedItem(user, target, session.GetItems(user), session.GetItems(target), stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
                                 case EItem.Hat:
-                                    Broadcast(new PacketUsedItem(user, item, stealtarget), session, "Item usage");
+                                    Broadcast(new PacketUsedItem(user, item, stealtarget, shouldblock), session, "Item usage");
                                     break;
                             }
                         }
@@ -1208,6 +1241,14 @@ namespace Server
                             bool cuffed = session.HasFlag(ERoundFlags.AgainBecauseCuffed);
                             session.ResetGlobalFlags();
                             Broadcast(new PacketShoot(actualsender, target, flags, type), session, "Shooting");
+                            if (session.HasFlag(ERoundFlags.HasHeroineEffect, actualsender))
+                                session.ResetFlag(ERoundFlags.HasHeroineEffect, actualsender);
+                            if (session.HasFlag(ERoundFlags.HasKatanaEffect, actualsender))
+                                session.ResetFlag(ERoundFlags.HasKatanaEffect, actualsender);
+                            if (session.HasFlag(ERoundFlags.HasUsedAnything, actualsender))
+                                session.ResetFlag(ERoundFlags.HasUsedAnything, actualsender);
+                            if (session.HasFlag(ERoundFlags.AllowOnce))
+                                session.ResetFlag(ERoundFlags.AllowOnce);
                             if (session.GetBulletCount() == 0)
                             {
                                 session.RoundStart();

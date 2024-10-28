@@ -499,9 +499,6 @@ namespace BSR_Client
         {
             ResetFlag(EFlags.NextItemTrashed);
             ResetFlag(EFlags.UsingPlayerItem);
-            ResetFlag(EFlags.UsingHeroine);
-            ResetFlag(EFlags.UsingKatana);
-            ResetFlag(EFlags.UsingSwapper);
         }
 
         public string GetItemType(Button slot)
