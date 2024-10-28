@@ -125,15 +125,8 @@ namespace BSR_Client
                 BlockItems();
                 ResetFlag(EFlags.ItemUsageBlockedCompletely);
             }
-        }
-
-        public void SetEverythingInteractable()
-        {
-            Shoot.IsEnabled = true;
-            foreach (Button it in ItemDisplays)
-                it.IsEnabled = true;
-            foreach (Button it in PlayerDisplays)
-                it.IsEnabled = true;
+            if (active && IsFlagSet(EFlags.HandcuffUsageBlocked))
+                LockItem(EItem.Handcuffs);
         }
 
         public void PopulatePlayerSlot(Button slot, string player, bool angry)
@@ -157,14 +150,20 @@ namespace BSR_Client
                 (image as Image).Source = new BitmapImage(new Uri(angry ? "textures/dealer2.png" : "textures/dealer1.png", UriKind.Relative));
         }
 
-        public void SetPlayersInteractable(bool interactable)
+        public void SetPlayersInteractable(bool interactable, bool includeself)
         {
             if (interactable)
                 SetActive(false);
             for (int i = 0; i < PlayerDisplays.Length; i++)
+            {
+                if (GetPlayerName(i) == You && !includeself)
+                    continue;
                 if (DoesPlayerExist(i))
                     PlayerDisplays[i].IsEnabled = interactable;
+            }
         }
+
+        public void EnableShooting() => Shoot.IsEnabled = true;
 
         public void ResetPlayerSlots()
         {
@@ -491,6 +490,15 @@ namespace BSR_Client
 
         public bool IsFlagSet(EFlags flag) => (Flags & flag) != 0;
 
+        public void ResetPlayerItemFlags()
+        {
+            ResetFlag(EFlags.NextItemTrashed);
+            ResetFlag(EFlags.UsingPlayerItem);
+            ResetFlag(EFlags.UsingHeroine);
+            ResetFlag(EFlags.UsingKatana);
+            ResetFlag(EFlags.UsingSwapper);
+        }
+
         public string GetItemType(Button slot)
         {
             if (slot == null)
@@ -517,6 +525,18 @@ namespace BSR_Client
                     result++;
             }
             return result;
+        }
+
+        public void LockItem(EItem item)
+        {
+            foreach (Button itemd in ItemDisplays)
+            {
+                string typestr = GetItemType(itemd);
+                if (!Enum.TryParse(typestr, out EItem type))
+                    continue;
+                if (item == type)
+                    itemd.IsEnabled = false;
+            }
         }
 
         public EItem UseItem(string slot, bool remove = true)

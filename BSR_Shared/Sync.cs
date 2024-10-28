@@ -324,6 +324,8 @@ class PacketUsedItem : Packet
 
     public EItem[] GetItems() => Items;
 
+    public bool HasItems() => Items.Count(it => it == EItem.Nothing) != Items.Length;
+
     public bool IsStolen() => Stealing;
 
     public string GetStealingTarget() => StolenFrom;
@@ -492,7 +494,15 @@ class PacketShoot : Packet
 
     public PacketShoot(List<byte> data) => Receive(data);
 
-    public PacketShoot(string sender, string who, ERoundFlags flags = ERoundFlags.None, EBullet type = EBullet.Undefined)
+    public PacketShoot(string sender, string who)
+    {
+        Sender = sender;
+        Who = who;
+        Flags = ERoundFlags.None;
+        Type = EBullet.Undefined;
+    }
+
+    public PacketShoot(string sender, string who, ERoundFlags flags, EBullet type)
     {
         Sender = sender;
         Who = who;

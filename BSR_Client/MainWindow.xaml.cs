@@ -102,7 +102,7 @@ namespace BSR_Client
                         case EPacket.StartRound:
                             {
                                 PacketStartRound packet = new PacketStartRound(data);
-                                ResetFlag(EFlags.NextItemTrashed);
+                                ResetPlayerItemFlags();
                                 Console.WriteLine(packet.ToString());
                                 List<EBullet> bullets = packet.GetBullets();
                                 bool noitems = packet.NoItemsGenerated();
@@ -145,6 +145,7 @@ namespace BSR_Client
                                 if (packet.GetTarget() != You)
                                 {
                                     ResetFlag(EFlags.HandcuffUsageBlocked);
+                                    ResetPlayerItemFlags();
                                     Announce(packet.GetTarget() + "'s turn");
                                     return;
                                 }
@@ -263,6 +264,7 @@ namespace BSR_Client
                                             if (!shouldapply)
                                                 return;
                                             SetFlag(EFlags.HandcuffUsageBlocked);
+                                            LockItem(EItem.Handcuffs);
                                         }
                                         break;
                                     case EItem.Magnifying:
@@ -312,8 +314,13 @@ namespace BSR_Client
                                             if (!IsFlagSet(EFlags.UsingAdrenaline))
                                                 return;
                                             StoreItems();
-                                            EItem[] items = packet.GetItems();
-                                            OverrideItems(items);
+                                            if (packet.HasItems())
+                                            {
+                                                EItem[] items = packet.GetItems();
+                                                OverrideItems(items);
+                                                LockItem(EItem.Adrenaline);
+                                            }
+                                            else Announce("Nothing to steal");
                                         }
                                         break;
                                     case EItem.Trashbin:
@@ -435,8 +442,13 @@ namespace BSR_Client
                     break;
                 case "Shoot":
                     {
+                        if (IsFlagSet(EFlags.UsingAdrenaline))
+                        {
+                            ResetFlag(EFlags.UsingAdrenaline);
+                            RestoreItems();
+                        }
                         SetFlag(EFlags.Shooting);
-                        SetPlayersInteractable(true);
+                        SetPlayersInteractable(true, true);
                     }
                     break;
                 case "Item1":
@@ -450,6 +462,7 @@ namespace BSR_Client
                     {
                         if (UseItem(action, false) == EItem.Handcuffs && IsFlagSet(EFlags.HandcuffUsageBlocked))
                             return;
+                        SetPlayersInteractable(false, true);
                         EItem item = UseItem(action);
                         if (IsFlagSet(EFlags.UsingAdrenaline))
                         {
@@ -473,14 +486,15 @@ namespace BSR_Client
                         }
                         if (IsFlagSet(EFlags.NextItemTrashed))
                         {
-                            ResetFlag(EFlags.NextItemTrashed);
+                            ResetPlayerItemFlags();
                             Packet.Send(new PacketUseItem(You, item), Sync);
                             return;
                         }
                         if (IsFlagSet(EFlags.UsingPlayerItem))
-                            SetPlayersInteractable(true);
-                        else
-                            Packet.Send(new PacketUseItem(You, item), Sync);
+                        {
+                            SetPlayersInteractable(true, false);
+                        }
+                        else Packet.Send(new PacketUseItem(You, item), Sync);
                     }
                     break;
                 case "Player1":
@@ -491,8 +505,9 @@ namespace BSR_Client
                     {
                         if (IsFlagSet(EFlags.Shooting))
                         {
-                            SetPlayersInteractable(false);
+                            SetPlayersInteractable(false, true);
                             string target = GetPlayerFromSlot(action);
+                            ResetPlayerItemFlags();
                             Packet.Send(new PacketShoot(You, target), Sync);
                         }
                         else if (IsFlagSet(EFlags.UsingPlayerItem))
@@ -508,14 +523,9 @@ namespace BSR_Client
                             else if (IsFlagSet(EFlags.UsingSwapper))
                                 item = EItem.Swapper;
                             Packet.Send(new PacketUseItem(You, item, target), Sync);
-                            ResetFlag(EFlags.UsingPlayerItem);
-                            ResetFlag(EFlags.UsingHeroine);
-                            ResetFlag(EFlags.UsingKatana);
-                            ResetFlag(EFlags.UsingSwapper);
-                            SetPlayersInteractable(false);
+                            ResetPlayerItemFlags();
+                            SetPlayersInteractable(false, true);
                             SetActive(true);
-                            if (item == EItem.Adrenaline)
-                                SetEverythingInteractable();
                         }
                     }
                     break;
