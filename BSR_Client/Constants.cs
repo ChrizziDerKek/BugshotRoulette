@@ -81,6 +81,7 @@ namespace BSR_Client
         private readonly MediaPlayer Katana = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Swapper = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Hat = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Snus = new MediaPlayer() { Volume = 0.0 };
         private bool WasPlaying = false;
         private EMusic Playing = EMusic.Undefined;
 
@@ -194,6 +195,9 @@ namespace BSR_Client
                 case EItem.Hat:
                     PlayOnce(Hat);
                     break;
+                case EItem.Snus:
+                    PlayOnce(Snus);
+                    break;
             }
         }
 
@@ -256,6 +260,7 @@ namespace BSR_Client
                 Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
                 Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
                 Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
+                Snus.Open(new Uri("sounds/bsr_snus.wav", UriKind.Relative));
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;
                 Background2.MediaEnded += Media_Ended;
@@ -281,6 +286,7 @@ namespace BSR_Client
                 Katana.Volume = 1.0;
                 Swapper.Volume = 1.0;
                 Hat.Volume = 1.0;
+                Snus.Volume = 1.0;
                 PlayMusic(EMusic.Title);
             });
         }
