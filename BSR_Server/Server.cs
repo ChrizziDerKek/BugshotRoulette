@@ -1117,7 +1117,8 @@ namespace Server
                                         }
                                         session.SetFlag(ERoundFlags.StealingItems, user);
                                         session.SetFlag(ERoundFlags.StealingTarget, target);
-                                        session.SetFlag(ERoundFlags.AllowOnce);
+                                        if (session.HasFlag(ERoundFlags.HasKatanaEffect, user))
+                                            session.SetFlag(ERoundFlags.AllowOnce);
                                         Broadcast(new PacketUsedItem(user, target, session.GetItems(target), shouldblock), session, "Item usage");
                                     }
                                     break;
