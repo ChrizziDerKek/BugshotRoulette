@@ -1014,7 +1014,8 @@ namespace Server
                             {
                                 EItem replacement = session.GenerateItems(user, 1, false, true);
                                 Broadcast(new PacketUsedItem(user, item, stealtarget, true, replacement, false), session, "Item trashed");
-                                session.SetFlag(ERoundFlags.AllowOnce);
+                                if (session.HasFlag(ERoundFlags.HasKatanaEffect, user))
+                                    session.SetFlag(ERoundFlags.AllowOnce);
                                 return;
                             }
                             if (!once && session.HasFlag(ERoundFlags.HasKatanaEffect, user) && session.HasFlag(ERoundFlags.HasUsedAnything, user))
@@ -1187,6 +1188,7 @@ namespace Server
                                 case EItem.Snus:
                                     {
                                         session.SetFlag(ERoundFlags.RepeatedHealing, user);
+                                        session.SetFlag(ERoundFlags.RepeatedHealingJustUsed, user);
                                         Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
                                     break;
@@ -1279,12 +1281,22 @@ namespace Server
                                 else
                                 {
                                     session.SwitchPlayer();
+                                    
                                     List<string> heal = session.GetRepeatedHealing();
                                     if (heal.Count > 0)
                                     {
+                                        List<string> targets = new List<string>();
                                         foreach (string player in heal)
+                                        {
+                                            if (session.HasFlag(ERoundFlags.RepeatedHealingJustUsed, player))
+                                            {
+                                                session.ResetFlag(ERoundFlags.RepeatedHealingJustUsed, player);
+                                                continue;
+                                            }
                                             session.SetHealth(player, session.GetHealth(player) + 2);
-                                        Broadcast(new PacketRoundHeal(heal, 2), session, "Round heal");
+                                            targets.Add(player);
+                                        }
+                                        Broadcast(new PacketRoundHeal(targets, 2), session, "Round heal");
                                     }
                                 }
                             }

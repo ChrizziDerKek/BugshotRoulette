@@ -85,6 +85,7 @@ public enum ERoundFlags
     HasUsedAnything = 1 << 10,
     AllowOnce = 1 << 11,
     RepeatedHealing = 1 << 12,
+    RepeatedHealingJustUsed = 1 << 13,
 }
 
 public class SettingsData

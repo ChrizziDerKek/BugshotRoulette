@@ -28,7 +28,7 @@
                 <Button Background="Black" Foreground="White" Name="RestartGame" Content="Play again" Margin="250,25,250,-25" Click="Button_Click" Visibility="Hidden"/>
             </StackPanel>
         </Grid>
-        <Grid Name="Credits" Visibility="Visible">
+        <Grid Name="Credits" Visibility="Hidden">
             <StackPanel>
                 <TextBlock Text="CREDITS" Foreground="White" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Grid>
