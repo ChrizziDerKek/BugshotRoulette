@@ -28,8 +28,45 @@
                 <Button Background="Black" Foreground="White" Name="RestartGame" Content="Play again" Margin="250,25,250,-25" Click="Button_Click" Visibility="Hidden"/>
             </StackPanel>
         </Grid>
-        <Grid Name="Login" Visibility="Visible">
-            <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
+        <Grid Name="Credits" Visibility="Visible">
+            <StackPanel>
+                <TextBlock Text="CREDITS" Foreground="White" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Mike Klubnika:" Foreground="White" FontSize="24" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Chrizzi:" Foreground="White" FontSize="24" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Senpai Ari:" Foreground="White" FontSize="24" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Luxploit:" Foreground="White" FontSize="24" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Everyone else:" Foreground="White" FontSize="24" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Vertical" Grid.Column="1" Margin="5">
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Created the Original Buckshot Roulette" Foreground="White" FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Created this Fangame" Foreground="White" FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Sound Effects" Foreground="White" FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Help with Packet System" Foreground="White" FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                        <TextBlock Text="Playtesting and Ideas" Foreground="White" FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock FontSize="24"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Grid>
+        <Grid Name="Login" Visibility="Hidden">
+            <Image Name="TitleImage" Visibility="Visible" Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
             <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionStart" Visibility="Hidden">
                 <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
                 <TextBox Background="Black" Foreground="White" Name="Lobby" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" IsReadOnly="True" HorizontalContentAlignment="Center" PreviewMouseDown="TextBox_PreviewMouseDown"/>
@@ -165,6 +202,7 @@
                 <TextBlock Visibility="Hidden"/>
                 <Button Background="Black" Foreground="White" Name="SessionJoin" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Join Session" Click="Button_Click"/>
                 <Button Background="Black" Foreground="White" Name="SessionStart" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Create Session" Click="Button_Click"/>
+                <Button Background="Black" Foreground="White" Name="ShowCredits" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Credits" Click="Button_Click"/>
             </StackPanel>
             <Grid>
                 <Grid.RowDefinitions>
@@ -178,7 +216,7 @@
                 <ListView Name="Playerlist" Margin="5" SelectionChanged="ListView_SelectionChanged" TextBlock.Foreground="White" Background="Transparent" Visibility="Hidden"/>
             </Grid>
         </Grid>
-        <Grid Name="Game" Visibility="Visible" Background="Black">
+        <Grid Name="Game" Visibility="Hidden" Background="Black">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>

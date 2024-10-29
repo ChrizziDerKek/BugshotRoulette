@@ -604,7 +604,9 @@ namespace BSR_Client
 
         public void SetMenuState(EMenuState state)
         {
-            Playerlist.Visibility = state == EMenuState.Settings ? Visibility.Hidden : Visibility.Visible;
+            Visibility settings = state == EMenuState.Settings ? Visibility.Hidden : Visibility.Visible;
+            Playerlist.Visibility = settings;
+            TitleImage.Visibility = settings;
             switch (state)
             {
                 case EMenuState.Startup:
@@ -615,6 +617,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Hidden;
                     MenuSettings.Visibility = Visibility.Hidden;
+                    Credits.Visibility = Visibility.Hidden;
                     break;
                 case EMenuState.Join:
                     MenuSessionJoin.Visibility = Visibility.Visible;
@@ -624,6 +627,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Hidden;
                     MenuSettings.Visibility = Visibility.Hidden;
+                    Credits.Visibility = Visibility.Hidden;
                     break;
                 case EMenuState.Host:
                     MenuSessionJoin.Visibility = Visibility.Hidden;
@@ -633,6 +637,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Hidden;
                     MenuSettings.Visibility = Visibility.Hidden;
+                    Credits.Visibility = Visibility.Hidden;
                     break;
                 case EMenuState.Settings:
                     MenuSessionJoin.Visibility = Visibility.Hidden;
@@ -642,6 +647,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Hidden;
                     MenuSettings.Visibility = Visibility.Visible;
+                    Credits.Visibility = Visibility.Hidden;
                     break;
                 case EMenuState.Gamestart:
                     MenuSessionJoin.Visibility = Visibility.Hidden;
@@ -651,7 +657,7 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Hidden;
                     Game.Visibility = Visibility.Visible;
                     MenuSettings.Visibility = Visibility.Hidden;
-                    
+                    Credits.Visibility = Visibility.Hidden;
                     break;
                 case EMenuState.Gameover:
                     MenuSessionJoin.Visibility = Visibility.Hidden;
@@ -661,6 +667,17 @@ namespace BSR_Client
                     Gameover.Visibility = Visibility.Visible;
                     Game.Visibility = Visibility.Hidden;
                     MenuSettings.Visibility = Visibility.Hidden;
+                    Credits.Visibility = Visibility.Hidden;
+                    break;
+                case EMenuState.Credits:
+                    MenuSessionJoin.Visibility = Visibility.Hidden;
+                    MenuSessionStart.Visibility = Visibility.Hidden;
+                    MainMenu.Visibility = Visibility.Hidden;
+                    Login.Visibility = Visibility.Hidden;
+                    Gameover.Visibility = Visibility.Hidden;
+                    Game.Visibility = Visibility.Hidden;
+                    MenuSettings.Visibility = Visibility.Hidden;
+                    Credits.Visibility = Visibility.Visible;
                     break;
             }
         }

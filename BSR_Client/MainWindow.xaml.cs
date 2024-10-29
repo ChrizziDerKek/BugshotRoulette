@@ -423,15 +423,14 @@ namespace BSR_Client
                         Lobby.Text = Guid.NewGuid().ToString();
                     }
                     break;
+                case "ShowCredits":
+                    SetMenuState(EMenuState.Credits);
+                    break;
                 case "GameSettings":
-                    {
-                        SetMenuState(EMenuState.Settings);
-                    }
+                    SetMenuState(EMenuState.Settings);
                     break;
                 case "CopySession":
-                    {
-                        Clipboard.SetText(Lobby.Text);
-                    }
+                    Clipboard.SetText(Lobby.Text);
                     break;
                 case "SessionHost":
                     {
@@ -563,6 +562,12 @@ namespace BSR_Client
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            if (Credits.Visibility == Visibility.Visible)
+            {
+                SetMenuState(EMenuState.Startup);
+                e.Cancel = true;
+                return;
+            }
             if (MenuSettings.Visibility == Visibility.Visible)
             {
                 SetMenuState(EMenuState.Host);

@@ -17,6 +17,7 @@ namespace BSR_Client
         Settings,
         Gamestart,
         Gameover,
+        Credits,
     }
 
     public enum EMusic
