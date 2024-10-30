@@ -10,294 +10,15 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
+using static System.Net.Mime.MediaTypeNames;
+using System.Runtime.Remoting.Messaging;
+using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
 
 namespace Server
 {
-    public class Bot
-    {
-        private Session Session;
-        private List<bool> BulletIsKnown;
-        private bool KnowsCurrentBullet;
-        private EBullet CurrentlyKnownBullet;
-        private bool? ShouldTargetPlayer;
-        private string Dealer;
-        private bool CanUseAdrenaline;
-        private bool UsingMedicine;
-        private bool UsingSaw;
-        private bool SawedOff;
-        private int Damage;
-        private bool CuffedPlayer;
-        private bool MainLoopFinished;
-
-        public Bot(Session session)
-        {
-            Session = session;
-            BulletIsKnown = new List<bool>();
-            KnowsCurrentBullet = false;
-            CurrentlyKnownBullet = EBullet.Undefined;
-            ShouldTargetPlayer = null;
-            Dealer = session.GetBotName();
-            CanUseAdrenaline = false;
-            UsingMedicine = false;
-            SawedOff = false;
-            UsingSaw = false;
-            Damage = 1;
-            CuffedPlayer = false;
-            MainLoopFinished = false;
-        }
-
-        public void BotTurn()
-        {
-            bool hassaw = false;
-            bool hascigs = false;
-            EItem wantstouse = EItem.Nothing;
-            EBullet racked = EBullet.Undefined;
-            int phoneindex = 0;
-            if (!KnowsCurrentBullet)
-            {
-                KnowsCurrentBullet = FigureOutBullet();
-                if (KnowsCurrentBullet)
-                    UpdateKnownBullet();
-            }
-            if (Session.GetBulletCount() == 1)
-                UpdateKnownBullet();
-            foreach (EItem item in Session.GetItems(Dealer))
-            {
-                if (item == EItem.Cigarettes)
-                    hascigs = true;
-                if (item == EItem.Adrenaline)
-                    CanUseAdrenaline = true;
-            }
-            List<KeyValuePair<EItem, string>> availableitems = new List<KeyValuePair<EItem, string>>();
-            foreach (EItem it in Session.GetItems(Dealer))
-                if (it != EItem.Nothing)
-                    availableitems.Add(new KeyValuePair<EItem, string>(it, Dealer));
-            if (CanUseAdrenaline)
-                foreach (string player in Session.GetPlayers())
-                    if (!Session.IsBot(player))
-                        foreach (EItem it in Session.GetItems(player))
-                            if (it < EItem.Adrenaline && it != EItem.Nothing)
-                                availableitems.Add(new KeyValuePair<EItem, string>(it, player));
-            int health = Session.GetHealth(Dealer);
-            int maxhealth = Session.GetMaxHealth();
-            int bulletcount = Session.GetBulletCount();
-            foreach (KeyValuePair<EItem, string> it in availableitems)
-            {
-                EItem item = it.Key;
-                switch (item)
-                {
-                    case EItem.Handcuffs:
-                        if (!CuffedPlayer && bulletcount != 1)
-                        {
-                            wantstouse = item;
-                            CuffedPlayer = true;
-                        }
-                        break;
-                    case EItem.Cigarettes:
-                        if (health < maxhealth)
-                        {
-                            wantstouse = item;
-                            hascigs = false;
-                        }
-                        break;
-                    case EItem.Saw:
-                        if (!SawedOff && CurrentlyKnownBullet == EBullet.Live)
-                        {
-                            wantstouse = item;
-                            UsingSaw = true;
-                            SawedOff = true;
-                            Damage = 2;
-                        }
-                        break;
-                    case EItem.Magnifying:
-                        if (!KnowsCurrentBullet && bulletcount != 1)
-                        {
-                            wantstouse = item;
-                            UpdateKnownBullet();
-                        }
-                        break;
-                    case EItem.Beer:
-                        if (CurrentlyKnownBullet != EBullet.Live && bulletcount != 1)
-                        {
-                            wantstouse = item;
-                            racked = Session.PopBullet();
-                            BulletIsKnown.RemoveAt(0);
-                            KnowsCurrentBullet = false;
-                        }
-                        break;
-                    case EItem.Inverter:
-                        if (KnowsCurrentBullet && CurrentlyKnownBullet == EBullet.Blank)
-                        {
-                            wantstouse = item;
-                            Session.InvertBullet();
-                            UpdateKnownBullet();
-                        }
-                        break;
-                    case EItem.Medicine:
-                        if (health < maxhealth && !hascigs && !UsingMedicine && health != 1)
-                        {
-                            wantstouse = item;
-                            UsingMedicine = true;
-                        }
-                        break;
-                    case EItem.Phone:
-                        if (bulletcount >= 2)
-                        {
-                            int decision = Session.GetRNG().Next(1, bulletcount);
-                            if (decision == 8)
-                                decision--;
-                            BulletIsKnown[decision] = true;
-                            phoneindex = decision;
-                            wantstouse = item;
-                        }
-                        break;
-                }
-                if (wantstouse != EItem.Nothing)
-                    break;
-            }
-            if (wantstouse == EItem.Nothing)
-                MainLoopFinished = true;
-            foreach (EItem item in Session.GetItems(Dealer))
-                if (item == EItem.Saw)
-                    hassaw = true;
-            if (MainLoopFinished && !UsingSaw && hassaw && !SawedOff && CurrentlyKnownBullet != EBullet.Blank)
-            {
-                if (CoinFlip())
-                {
-                    ShouldTargetPlayer = true;
-                    wantstouse = EItem.Saw;
-                    UsingSaw = true;
-                    SawedOff = true;
-                    Damage = 2;
-                }
-                else ShouldTargetPlayer = false;
-            }
-            if (wantstouse != EItem.Nothing)
-            {
-                bool done = false;
-                switch (wantstouse)
-                {
-                    case EItem.Cigarettes:
-                        {
-                            health++;
-                            if (health > maxhealth)
-                                health = maxhealth;
-                            Session.SetHealth(Dealer, health);
-                        }
-                        break;
-                    case EItem.Medicine:
-                        {
-                            if (Session.GetRNG().Next(0, 2) == 0)
-                                health--;
-                            else
-                                health += 2;
-                            if (health < 0)
-                                health = 0;
-                            if (health > maxhealth)
-                                health = maxhealth;
-                            Session.SetHealth(Dealer, health);
-                            done = true;
-                        }
-                        break;
-                }
-                bool stealing = !Session.RemoveItem(Dealer, wantstouse);
-                foreach (KeyValuePair<EItem, string> it in availableitems)
-                {
-                    EItem item = it.Key;
-                    string player = it.Value;
-                    if (item == wantstouse && stealing && wantstouse != EItem.Adrenaline)
-                    {
-                        Session.RemoveItem(Dealer, EItem.Adrenaline);
-                        Session.RemoveItem(player, wantstouse);
-                        CanUseAdrenaline = false;
-                        break;
-                    }
-                }
-                //TODO: Dealer used ... / Dealer used Adrenaline to steal ... from ...
-                if (done)
-                    return;
-                BotTurn();
-                return;
-            }
-            if (ShouldTargetPlayer == null)
-                ShouldTargetPlayer = Session.GetRNG().Next(0, 2) == 0;
-            EBullet bullet = Session.PopBullet();
-            BulletIsKnown.RemoveAt(0);
-            string target = Dealer;
-            if (ShouldTargetPlayer == true)
-            {
-                List<string> players = Session.GetPlayers();
-                int decision;
-                do decision = Session.GetRNG().Next(0, players.Count);
-                while (players[decision] == Dealer);
-            }
-            //TODO: Health -= Damage and Pass Control
-            ShouldTargetPlayer = null;
-            CurrentlyKnownBullet = EBullet.Undefined;
-            KnowsCurrentBullet = false;
-        }
-
-        public void RoundStart(bool initial, bool noitems)
-        {
-            foreach (EBullet bullet in Session.GetBullets(false))
-                BulletIsKnown.Add(false);
-        }
-
-        private bool CoinFlip()
-        {
-            int nlive = 0;
-            int nblank = 0;
-            foreach (EBullet bullet in Session.GetBullets(false))
-            {
-                if (bullet == EBullet.Live)
-                    nlive++;
-                else if (bullet == EBullet.Blank)
-                    nblank++;
-            }
-            if (nlive == nblank)
-                return Session.GetRNG().Next(0, 2) == 0;
-            return nlive > nblank;
-        }
-
-        private void UpdateKnownBullet()
-        {
-            KnowsCurrentBullet = true;
-            CurrentlyKnownBullet = Session.GetNextBullet();
-            ShouldTargetPlayer = CurrentlyKnownBullet == EBullet.Live;
-        }
-
-        private bool FigureOutBullet()
-        {
-            if (BulletIsKnown[0])
-                return true;
-            List<EBullet> bullets = Session.GetBullets(false);
-            int nlive = 0;
-            int nblank = 0;
-            foreach (EBullet bullet in bullets)
-            {
-                if (bullet == EBullet.Live)
-                    nlive++;
-                else if (bullet == EBullet.Blank)
-                    nblank++;
-            }
-            if (nlive == 0 || nblank == 0)
-                return true;
-            for (int i = 0; i < BulletIsKnown.Count; i++)
-            {
-                if (!BulletIsKnown[i])
-                    continue;
-                if (bullets[i] == EBullet.Live)
-                    nlive--;
-                else if (bullets[i] == EBullet.Blank)
-                    nblank--;
-            }
-            return nlive == 0 || nblank == 0;
-        }
-    }
-
     public class Session
     {
         private string Host;
@@ -318,8 +39,35 @@ namespace Server
         private ERoundFlags NextRoundFlags;
         private EItem LastUsedItem;
         private Dictionary<string, ERoundFlags> PlayerFlags;
+
+        private enum EBotFlag
+        {
+            None = 0,
+            KnowsCurrentBullet = 1 << 0,
+            CanUseAdrenaline = 1 << 1,
+            UsingMedicine = 1 << 2,
+            UsingSaw = 1 << 3,
+            SawedOff = 1 << 4,
+            CuffedPlayer = 1 << 5,
+            ItemDecisionDone = 1 << 6,
+        }
+
         private string BotName;
-        private Bot Dealer;
+        private bool BotAdded;
+        private List<bool> BulletIsKnown;
+        private EBullet CurrentlyKnownBullet;
+        private bool? BotShouldTargetPlayer;
+        private EBotFlag BotFlags;
+
+        private bool IsBotFlagSet(EBotFlag flag) => (BotFlags & flag) != 0;
+
+        private void SetBotFlag(EBotFlag flag, bool set)
+        {
+            if (set)
+                BotFlags |= flag;
+            else
+                BotFlags &= ~flag;
+        }
 
         private static Dictionary<EItem, int> ItemLimits = new Dictionary<EItem, int>()
         {
@@ -366,7 +114,11 @@ namespace Server
             LastUsedItem = EItem.Nothing;
             PlayerFlags = new Dictionary<string, ERoundFlags>();
             BotName = "Dealer";
-            Dealer = null;
+            BotAdded = false;
+            BulletIsKnown = new List<bool>();
+            CurrentlyKnownBullet = EBullet.Undefined;
+            BotShouldTargetPlayer = null;
+            BotFlags = EBotFlag.None;
         }
 
         public void ResetGame()
@@ -382,6 +134,10 @@ namespace Server
             NextRoundFlags = ERoundFlags.None;
             LastUsedItem = EItem.Nothing;
             PlayerFlags.Clear();
+            BulletIsKnown.Clear();
+            CurrentlyKnownBullet = EBullet.Undefined;
+            BotShouldTargetPlayer = null;
+            BotFlags = EBotFlag.None;
         }
 
         public int GetNumAlivePlayers()
@@ -407,9 +163,7 @@ namespace Server
 
         public bool IsBot(string player) => BotName == player;
 
-        public bool BotExists() => Dealer != null;
-
-        public Bot GetBot() => Dealer;
+        public bool BotExists() => BotAdded;
 
         public void SwapItems(string player, string with)
         {
@@ -505,6 +259,8 @@ namespace Server
                 return EBullet.Undefined;
             EBullet bullet = ActualBullets[0];
             ActualBullets.RemoveAt(0);
+            DisplayedBullets.RemoveAt(0);
+            BulletIsKnown.RemoveAt(0);
             return bullet;
         }
 
@@ -541,7 +297,7 @@ namespace Server
             if (Players.Contains(BotName))
                 return;
             Players.Add(BotName);
-            Dealer = new Bot(this);
+            BotAdded = true;
             if (Players.Count >= Settings.MaxPlayers)
                 Locked = true;
         }
@@ -550,7 +306,8 @@ namespace Server
         {
             if (!Players.Contains(player))
                 return;
-            Dealer = null;
+            if (IsBot(player))
+                BotAdded = false;
             Players.Remove(player);
             PlayerItems.Remove(player);
             PlayerHealth.Remove(player);
@@ -581,7 +338,11 @@ namespace Server
 
         public void ResetSettings() => Settings = new SettingsData();
 
-        public void SetFirstPlayer() => CurrentPlayer = RNG.Next(0, Players.Count);
+        public void SetFirstPlayer()
+        {
+            do CurrentPlayer = RNG.Next(0, Players.Count);
+            while (IsBot(Players[CurrentPlayer]));
+        }
 
         public int GetMaxHealth() => StartLives;
 
@@ -612,7 +373,7 @@ namespace Server
             {
                 LastGeneratedItems.Clear();
                 foreach (string player in Players)
-                    GenerateItems(player, nitems, false, false);
+                    GenerateItems(player, nitems, IsBot(player), false);
             }
             if (initial)
             {
@@ -626,7 +387,7 @@ namespace Server
                 }
             }
             if (BotExists())
-                Dealer.RoundStart(initial, noitems);
+                BotRoundStart();
         }
 
         public void PushBullet()
@@ -634,6 +395,7 @@ namespace Server
             bool live = RNG.Next(0, 2) == 0;
             ActualBullets.Add(live ? EBullet.Live : EBullet.Blank);
             DisplayedBullets.Add(EBullet.Undefined);
+            BulletIsKnown.Add(false);
         }
 
         private void GenerateLives() => StartLives = RNG.Next(Settings.MinHealth, Settings.MaxHealth + 1);
@@ -674,11 +436,13 @@ namespace Server
             {
                 ActualBullets.Add(EBullet.Blank);
                 DisplayedBullets.Add(EBullet.Blank);
+                BulletIsKnown.Add(false);
             }
             for (int i = 0; i < nlive; i++)
             {
                 ActualBullets.Add(EBullet.Live);
                 DisplayedBullets.Add(EBullet.Live);
+                BulletIsKnown.Add(false);
             }
             ShuffleBullets();
         }
@@ -811,6 +575,294 @@ namespace Server
                 int r = RNG.Next(n--);
                 (DisplayedBullets[r], DisplayedBullets[n]) = (DisplayedBullets[n], DisplayedBullets[r]);
             }
+        }
+
+        public void BotTurn(List<Packet> packets)
+        {
+            bool hassaw = false;
+            bool hascigs = false;
+            EItem wantstouse = EItem.Nothing;
+            EBullet racked = EBullet.Undefined;
+            bool rackedwasinverted = false;
+            int phoneindex = 0;
+            if (!IsBotFlagSet(EBotFlag.KnowsCurrentBullet))
+            {
+                SetBotFlag(EBotFlag.KnowsCurrentBullet, FigureOutBullet());
+                if (IsBotFlagSet(EBotFlag.KnowsCurrentBullet))
+                    SetKnownBullet();
+            }
+            int health = GetHealth(BotName);
+            int maxhealth = GetMaxHealth();
+            int bulletcount = GetBulletCount();
+            if (bulletcount == 1)
+                SetKnownBullet();
+            foreach (EItem item in GetItems(BotName))
+            {
+                if (item == EItem.Cigarettes)
+                    hascigs = true;
+                if (item == EItem.Adrenaline)
+                    SetBotFlag(EBotFlag.CanUseAdrenaline, true);
+            }
+            List<KeyValuePair<EItem, string>> availableitems = new List<KeyValuePair<EItem, string>>();
+            foreach (EItem it in GetItems(BotName))
+                if (it != EItem.Nothing)
+                    availableitems.Add(new KeyValuePair<EItem, string>(it, BotName));
+            if (IsBotFlagSet(EBotFlag.CanUseAdrenaline))
+                foreach (string player in GetPlayers())
+                    if (!IsBot(player))
+                        foreach (EItem it in GetItems(player))
+                            if (it < EItem.Adrenaline && it != EItem.Nothing)
+                                availableitems.Add(new KeyValuePair<EItem, string>(it, player));
+            foreach (KeyValuePair<EItem, string> it in availableitems)
+            {
+                EItem item = it.Key;
+                switch (item)
+                {
+                    case EItem.Handcuffs:
+                        if (!IsBotFlagSet(EBotFlag.CuffedPlayer) && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            SetBotFlag(EBotFlag.CuffedPlayer, true);
+                            SetFlag(ERoundFlags.AgainBecauseCuffed);
+                        }
+                        break;
+                    case EItem.Cigarettes:
+                        if (health < maxhealth)
+                        {
+                            wantstouse = item;
+                            hascigs = false;
+                        }
+                        break;
+                    case EItem.Saw:
+                        if (!IsBotFlagSet(EBotFlag.SawedOff) && CurrentlyKnownBullet == EBullet.Live)
+                        {
+                            wantstouse = item;
+                            SetBotFlag(EBotFlag.SawedOff | EBotFlag.UsingSaw, true);
+                            SetFlag(ERoundFlags.ShotgunSawedOff);
+                        }
+                        break;
+                    case EItem.Magnifying:
+                        if (!IsBotFlagSet(EBotFlag.KnowsCurrentBullet) && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            SetKnownBullet();
+                        }
+                        break;
+                    case EItem.Beer:
+                        if (CurrentlyKnownBullet != EBullet.Live && bulletcount != 1)
+                        {
+                            wantstouse = item;
+                            racked = PopBullet();
+                            rackedwasinverted = HasFlag(ERoundFlags.ShotInverted);
+                            ResetGlobalFlags();
+                            SetBotFlag(EBotFlag.KnowsCurrentBullet, false);
+                        }
+                        break;
+                    case EItem.Inverter:
+                        if (IsBotFlagSet(EBotFlag.KnowsCurrentBullet) && CurrentlyKnownBullet == EBullet.Blank)
+                        {
+                            wantstouse = item;
+                            if (HasFlag(ERoundFlags.ShotInverted))
+                                ResetFlag(ERoundFlags.ShotInverted);
+                            else
+                                SetFlag(ERoundFlags.ShotInverted);
+                            InvertBullet();
+                            SetKnownBullet();
+                        }
+                        break;
+                    case EItem.Medicine:
+                        if (health < maxhealth && !hascigs && !IsBotFlagSet(EBotFlag.UsingMedicine) && health != 1)
+                        {
+                            wantstouse = item;
+                            SetBotFlag(EBotFlag.UsingMedicine, true);
+                        }
+                        break;
+                    case EItem.Phone:
+                        if (bulletcount >= 2)
+                        {
+                            int decision = RNG.Next(1, bulletcount);
+                            if (decision == 8)
+                                decision--;
+                            BulletIsKnown[decision] = true;
+                            phoneindex = decision;
+                            wantstouse = item;
+                        }
+                        break;
+                }
+                if (wantstouse != EItem.Nothing)
+                    break;
+            }
+            if (wantstouse == EItem.Nothing)
+                SetBotFlag(EBotFlag.ItemDecisionDone, true);
+            foreach (EItem item in GetItems(BotName))
+                if (item == EItem.Saw)
+                    hassaw = true;
+            if (IsBotFlagSet(EBotFlag.ItemDecisionDone) && !IsBotFlagSet(EBotFlag.UsingSaw) && hassaw && !IsBotFlagSet(EBotFlag.SawedOff) && CurrentlyKnownBullet != EBullet.Blank)
+            {
+                if (CoinFlip())
+                {
+                    BotShouldTargetPlayer = true;
+                    wantstouse = EItem.Saw;
+                    SetBotFlag(EBotFlag.UsingSaw, true);
+                    SetBotFlag(EBotFlag.SawedOff, true);
+                    SetFlag(ERoundFlags.ShotgunSawedOff);
+                }
+                else BotShouldTargetPlayer = false;
+            }
+            if (wantstouse != EItem.Nothing)
+            {
+                bool done = false;
+                int medsmodifier = 0;
+                switch (wantstouse)
+                {
+                    case EItem.Cigarettes:
+                        {
+                            health++;
+                            if (health > maxhealth)
+                                health = maxhealth;
+                            SetHealth(BotName, health);
+                        }
+                        break;
+                    case EItem.Medicine:
+                        {
+                            if (RNG.Next(0, 2) == 0)
+                                medsmodifier = -1;
+                            else
+                                medsmodifier = 2;
+                            health += medsmodifier;
+                            if (health < 0)
+                                health = 0;
+                            if (health > maxhealth)
+                                health = maxhealth;
+                            SetHealth(BotName, health);
+                            done = true;
+                        }
+                        break;
+                }
+                bool stealing = !RemoveItem(BotName, wantstouse);
+                string stealtarget = null;
+                foreach (KeyValuePair<EItem, string> it in availableitems)
+                {
+                    EItem item = it.Key;
+                    string player = it.Value;
+                    if (item == wantstouse && stealing && wantstouse != EItem.Adrenaline)
+                    {
+                        stealtarget = player;
+                        packets.Add(new PacketUsedItem(BotName, player, null, false));
+                        RemoveItem(BotName, EItem.Adrenaline);
+                        RemoveItem(player, wantstouse);
+                        SetBotFlag(EBotFlag.CanUseAdrenaline, false);
+                        break;
+                    }
+                }
+                switch (wantstouse)
+                {
+                    case EItem.Handcuffs:
+                        packets.Add(new PacketUsedItem(BotName, wantstouse, stealtarget));
+                        break;
+                    case EItem.Cigarettes:
+                        packets.Add(new PacketUsedItem(BotName, 1, true, stealtarget, false));
+                        break;
+                    case EItem.Saw:
+                        packets.Add(new PacketUsedItem(BotName, wantstouse, stealtarget));
+                        break;
+                    case EItem.Magnifying:
+                        packets.Add(new PacketUsedItem(BotName, EBullet.Undefined, stealtarget, 0, false));
+                        break;
+                    case EItem.Beer:
+                        packets.Add(new PacketUsedItem(BotName, racked, rackedwasinverted, stealtarget, false));
+                        break;
+                    case EItem.Inverter:
+                        packets.Add(new PacketUsedItem(BotName, wantstouse, stealtarget, false, EItem.Nothing, false));
+                        break;
+                    case EItem.Medicine:
+                        packets.Add(new PacketUsedItem(BotName, medsmodifier, false, stealtarget, false));
+                        break;
+                    case EItem.Phone:
+                        packets.Add(new PacketUsedItem(BotName, EBullet.Undefined, stealtarget, phoneindex, false));
+                        break;
+                }
+                if (done)
+                    return;
+                BotTurn(packets);
+                return;
+            }
+            if (BotShouldTargetPlayer == null)
+                BotShouldTargetPlayer = RNG.Next(0, 2) == 0;
+            EBullet bullet = PopBullet();
+            BulletIsKnown.RemoveAt(0);
+            string target = BotName;
+            if (BotShouldTargetPlayer == true)
+            {
+                List<string> players = GetPlayers();
+                int decision;
+                do decision = RNG.Next(0, players.Count);
+                while (players[decision] == BotName);
+                target = players[decision];
+            }
+            ERoundFlags flags = GetRoundFlags();
+            packets.Add(new PacketShoot(BotName, target, flags, bullet));
+            BotShouldTargetPlayer = null;
+            CurrentlyKnownBullet = EBullet.Undefined;
+            SetBotFlag(EBotFlag.KnowsCurrentBullet, false);
+        }
+
+        public void BotRoundStart()
+        {
+            
+        }
+
+        private bool CoinFlip()
+        {
+            if (Settings.DunceDealer)
+                return RNG.Next(0, 2) == 0;
+            int nlive = 0;
+            int nblank = 0;
+            foreach (EBullet bullet in GetBullets(false))
+            {
+                if (bullet == EBullet.Blank)
+                    nblank++;
+                else if (bullet == EBullet.Live)
+                    nlive++;
+            }
+            if (nlive == nblank)
+                return RNG.Next(0, 2) == 0;
+            return nlive > nblank;
+        }
+
+        private void SetKnownBullet()
+        {
+            SetBotFlag(EBotFlag.KnowsCurrentBullet, true);
+            CurrentlyKnownBullet = GetNextBullet();
+            BotShouldTargetPlayer = CurrentlyKnownBullet == EBullet.Live;
+        }
+
+        private bool FigureOutBullet()
+        {
+            if (BulletIsKnown[0])
+                return true;
+            List<EBullet> bullets = GetBullets(false);
+            int nlive = 0;
+            int nblank = 0;
+            foreach (EBullet bullet in bullets)
+            {
+                if (bullet == EBullet.Blank)
+                    nblank++;
+                else if (bullet == EBullet.Live)
+                    nlive++;
+            }
+            if (nlive == 0 || nblank == 0)
+                return true;
+            for (int i = 0; i < BulletIsKnown.Count; i++)
+            {
+                if (!BulletIsKnown[i])
+                    continue;
+                if (bullets[i] == EBullet.Blank)
+                    nblank--;
+                else if (bullets[i] == EBullet.Live)
+                    nlive--;
+            }
+            return nlive == 0 || nblank == 0;
         }
     }
 
@@ -1272,51 +1324,62 @@ namespace Server
                                 session.RoundStart();
                                 Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems()), session, "New Round Start");
                             }
-                            if (session.ShouldSwitchPlayer())
+                            while (true)
                             {
-                                if (cuffed)
+                                if (session.ShouldSwitchPlayer())
                                 {
-                                    session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
-                                    session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                    if (cuffed)
+                                    {
+                                        session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
+                                        session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                    }
+                                    else
+                                    {
+                                        session.SwitchPlayer();
+
+                                        List<string> heal = session.GetRepeatedHealing();
+                                        if (heal.Count > 0)
+                                        {
+                                            List<string> targets = new List<string>();
+                                            foreach (string player in heal)
+                                            {
+                                                if (session.HasFlag(ERoundFlags.RepeatedHealingJustUsed, player))
+                                                {
+                                                    session.ResetFlag(ERoundFlags.RepeatedHealingJustUsed, player);
+                                                    continue;
+                                                }
+                                                session.SetHealth(player, session.GetHealth(player) + 2);
+                                                targets.Add(player);
+                                            }
+                                            Broadcast(new PacketRoundHeal(targets, 2), session, "Round heal");
+                                        }
+                                    }
+                                }
+                                string nextplayer = session.GetCurrentPlayer();
+                                if (session.GetNumAlivePlayers() == 1)
+                                {
+                                    Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                    return;
+                                }
+                                while (session.GetHealth(nextplayer) <= 0)
+                                {
+                                    session.SwitchPlayer();
+                                    nextplayer = session.GetCurrentPlayer();
+                                }
+                                bool isbot = session.BotExists() && session.IsBot(nextplayer);
+                                if (!isbot)
+                                {
+                                    Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                                    break;
                                 }
                                 else
                                 {
-                                    session.SwitchPlayer();
-                                    
-                                    List<string> heal = session.GetRepeatedHealing();
-                                    if (heal.Count > 0)
-                                    {
-                                        List<string> targets = new List<string>();
-                                        foreach (string player in heal)
-                                        {
-                                            if (session.HasFlag(ERoundFlags.RepeatedHealingJustUsed, player))
-                                            {
-                                                session.ResetFlag(ERoundFlags.RepeatedHealingJustUsed, player);
-                                                continue;
-                                            }
-                                            session.SetHealth(player, session.GetHealth(player) + 2);
-                                            targets.Add(player);
-                                        }
-                                        Broadcast(new PacketRoundHeal(targets, 2), session, "Round heal");
-                                    }
+                                    List<Packet> packets = new List<Packet>();
+                                    session.BotTurn(packets);
+                                    foreach (Packet pack in packets)
+                                        Broadcast(pack, session, "Dealer Sync");
                                 }
                             }
-                            string nextplayer = session.GetCurrentPlayer();
-                            if (session.GetNumAlivePlayers() == 1)
-                            {
-                                Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
-                                return;
-                            }
-                            while (session.GetHealth(nextplayer) <= 0)
-                            {
-                                session.SwitchPlayer();
-                                nextplayer = session.GetCurrentPlayer();
-                            }
-                            bool isbot = session.BotExists() && session.IsBot(nextplayer);
-                            if (!isbot)
-                                Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
-                            else
-                                session.GetBot().BotTurn();
                         }
                         break;
                     case EPacket.StartGame:
@@ -1402,26 +1465,37 @@ namespace Server
                                         return;
                                     }
                                 }
-                                session.ShouldSwitchPlayer();
-                                session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
-                                session.SetFlag(ERoundFlags.HandcuffsJustUsed);
-                                session.SwitchPlayer();
-                                string nextplayer = session.GetCurrentPlayer();
-                                if (session.GetNumAlivePlayers() == 1)
+                                while (true)
                                 {
-                                    Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
-                                    return;
-                                }
-                                while (session.GetHealth(nextplayer) <= 0)
-                                {
+                                    session.ShouldSwitchPlayer();
+                                    session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
+                                    session.SetFlag(ERoundFlags.HandcuffsJustUsed);
                                     session.SwitchPlayer();
-                                    nextplayer = session.GetCurrentPlayer();
+                                    string nextplayer = session.GetCurrentPlayer();
+                                    if (session.GetNumAlivePlayers() == 1)
+                                    {
+                                        Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        return;
+                                    }
+                                    while (session.GetHealth(nextplayer) <= 0)
+                                    {
+                                        session.SwitchPlayer();
+                                        nextplayer = session.GetCurrentPlayer();
+                                    }
+                                    bool isbot = session.BotExists() && session.IsBot(nextplayer);
+                                    if (!isbot)
+                                    {
+                                        Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        List<Packet> packets = new List<Packet>();
+                                        session.BotTurn(packets);
+                                        foreach (Packet pack in packets)
+                                            Broadcast(pack, session, "Dealer Sync");
+                                    }
                                 }
-                                bool isbot = session.BotExists() && session.IsBot(nextplayer);
-                                if (!isbot)
-                                    Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
-                                else
-                                    session.GetBot().BotTurn();
                             }
                             else Console.WriteLine("Disconnected pending Player");
                             Clients.Remove(sender);
