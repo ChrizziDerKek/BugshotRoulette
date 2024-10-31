@@ -10,9 +10,6 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
-using static System.Net.Mime.MediaTypeNames;
-using System.Runtime.Remoting.Messaging;
-using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -40,7 +37,7 @@ namespace Server
         private EItem LastUsedItem;
         private Dictionary<string, ERoundFlags> PlayerFlags;
 
-        private enum EBotFlag
+        public enum EBotFlag
         {
             None = 0,
             KnowsCurrentBullet = 1 << 0,
@@ -59,9 +56,9 @@ namespace Server
         private bool? BotShouldTargetPlayer;
         private EBotFlag BotFlags;
 
-        private bool IsBotFlagSet(EBotFlag flag) => (BotFlags & flag) != 0;
+        public bool IsBotFlagSet(EBotFlag flag) => (BotFlags & flag) != 0;
 
-        private void SetBotFlag(EBotFlag flag, bool set)
+        public void SetBotFlag(EBotFlag flag, bool set)
         {
             if (set)
                 BotFlags |= flag;
@@ -449,6 +446,8 @@ namespace Server
 
         public EItem GenerateItems(string player, int count, bool bot, bool bypasslimits)
         {
+            if (bot && !Settings.OriginalItemsOnly)
+                count++;
             EItem lastgenerated = EItem.Nothing;
             if (Settings.NoItems)
                 return lastgenerated;
@@ -577,7 +576,7 @@ namespace Server
             }
         }
 
-        public void BotTurn(List<Packet> packets)
+        public void BotTurn(List<Packet> packets, List<Dictionary<string, Packet>> playerpackets)
         {
             bool hassaw = false;
             bool hascigs = false;
@@ -735,7 +734,8 @@ namespace Server
                             if (health > maxhealth)
                                 health = maxhealth;
                             SetHealth(BotName, health);
-                            done = true;
+                            if (medsmodifier == -1)
+                                done = true;
                         }
                         break;
                 }
@@ -784,32 +784,56 @@ namespace Server
                 }
                 if (done)
                     return;
-                BotTurn(packets);
+                BotTurn(packets, playerpackets);
                 return;
             }
             if (BotShouldTargetPlayer == null)
-                BotShouldTargetPlayer = RNG.Next(0, 2) == 0;
+                BotShouldTargetPlayer = CoinFlip();
             EBullet bullet = PopBullet();
-            BulletIsKnown.RemoveAt(0);
             string target = BotName;
             if (BotShouldTargetPlayer == true)
-            {
-                List<string> players = GetPlayers();
-                int decision;
-                do decision = RNG.Next(0, players.Count);
-                while (players[decision] == BotName);
-                target = players[decision];
-            }
+                target = DecideBotPlayerTarget();
+            if (bullet == EBullet.Blank && BotShouldTargetPlayer == false)
+                SetAgain();
             ERoundFlags flags = GetRoundFlags();
             packets.Add(new PacketShoot(BotName, target, flags, bullet));
             BotShouldTargetPlayer = null;
             CurrentlyKnownBullet = EBullet.Undefined;
             SetBotFlag(EBotFlag.KnowsCurrentBullet, false);
+            SetBotFlag(EBotFlag.CanUseAdrenaline, false);
+            if (GetBulletCount() == 0)
+            {
+                RoundStart();
+                packets.Add(null);
+                Dictionary<string, Packet> temp = new Dictionary<string, Packet>();
+                foreach (string player in Players)
+                    if (!IsBot(player))
+                        temp.Add(player, new PacketStartRound(GetBullets(true), GetItems(player), GetLastGeneratedItems()));
+                playerpackets.Add(temp);
+            }
+        }
+
+        private string DecideBotPlayerTarget()
+        {
+            List<string> decisions = new List<string>();
+            foreach (string player in GetPlayers())
+            {
+                if (IsBot(player))
+                    continue;
+                for (int i = 0; i < PlayerHealth[player]; i++)
+                    decisions.Add(player);
+            }
+            int decision = RNG.Next(0, decisions.Count);
+            return decisions[decision];
         }
 
         public void BotRoundStart()
         {
-            
+            SetBotFlag(EBotFlag.ItemDecisionDone, false);
+            SetBotFlag(EBotFlag.UsingSaw, false);
+            SetBotFlag(EBotFlag.UsingMedicine, false);
+            SetBotFlag(EBotFlag.SawedOff, false);
+            BotShouldTargetPlayer = null;
         }
 
         private bool CoinFlip()
@@ -1328,15 +1352,20 @@ namespace Server
                             {
                                 if (session.ShouldSwitchPlayer())
                                 {
+                                    if (session.IsBotFlagSet(Session.EBotFlag.CuffedPlayer))
+                                    {
+                                        session.SetBotFlag(Session.EBotFlag.CuffedPlayer, false);
+                                        cuffed = true;
+                                    }
                                     if (cuffed)
                                     {
                                         session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
                                         session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                        cuffed = false;
                                     }
                                     else
                                     {
                                         session.SwitchPlayer();
-
                                         List<string> heal = session.GetRepeatedHealing();
                                         if (heal.Count > 0)
                                         {
@@ -1375,9 +1404,20 @@ namespace Server
                                 else
                                 {
                                     List<Packet> packets = new List<Packet>();
-                                    session.BotTurn(packets);
+                                    List<Dictionary<string, Packet>> playerpackets = new List<Dictionary<string, Packet>>();
+                                    session.BotTurn(packets, playerpackets);
+                                    int index = 0;
                                     foreach (Packet pack in packets)
+                                    {
+                                        if (pack == null)
+                                        {
+                                            Broadcast(cli => playerpackets[index][cli.GetPlayer()], session, "New Round Start");
+                                            index++;
+                                            continue;
+                                        }
                                         Broadcast(pack, session, "Dealer Sync");
+                                        Thread.Sleep(1000);
+                                    }
                                 }
                             }
                         }
@@ -1491,9 +1531,20 @@ namespace Server
                                     else
                                     {
                                         List<Packet> packets = new List<Packet>();
-                                        session.BotTurn(packets);
+                                        List<Dictionary<string, Packet>> playerpackets = new List<Dictionary<string, Packet>>();
+                                        session.BotTurn(packets, playerpackets);
+                                        int index = 0;
                                         foreach (Packet pack in packets)
+                                        {
+                                            if (pack == null)
+                                            {
+                                                Broadcast(cli => playerpackets[index][cli.GetPlayer()], session, "New Round Start");
+                                                index++;
+                                                continue;
+                                            }
                                             Broadcast(pack, session, "Dealer Sync");
+                                            Thread.Sleep(1000);
+                                        }
                                     }
                                 }
                             }
