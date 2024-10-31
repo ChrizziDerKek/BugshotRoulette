@@ -1,0 +1,239 @@
+C 15, D 15
+C: pho, magn
+D: magn, pho, pho, be
+1L 2B
+
+C->D L
+
+C 15, D 14
+C: pho, magn
+D: magn, pho, pho, be
+0L 2B
+
+D->pho
+D->pho
+D->be -1B
+
+D->D B
+
+C 15, D 14
+C: pho, magn
+D: magn, cigs, pho
+3L 4B
+
+D->magn
+D->cigs
+D->pho
+
+D->D B
+
+C 15, D 15
+C: pho, magn
+D:
+3L 3B
+
+D->C L
+
+C 14, D 15
+C: pho, magn
+D:
+2L 3B
+
+C->C B
+C->C L
+
+C 13, D 15
+C: pho, magn
+D:
+1L 2B
+
+D->C B
+
+C 13, D 15
+C: pho, magn
+D:
+1L 1B
+
+C->D L
+
+C 13, D 14
+C: pho, magn
+D:
+0L 1B
+
+D->D B
+
+C 13, D 14
+C: saw, magn, be
+D: cuff, cigs
+3L 1B
+
+D->cuffs
+D->cigs
+D->D L
+
+C 13, D 14
+C: saw, magn, be
+D:
+2L 1B
+
+C->be
+C->saw
+C->D L
+
+C 13, D 12
+C: magn
+D:
+1L 0B
+
+D->C L
+
+C 12, D 12
+C: magn, saw, pho
+D: meds, be, cigs, adren
+3L 3B
+
+C->pho
+C->magn
+C->D L
+
+C 12, D 11
+C: saw
+D: meds, be, cigs, adren
+2L 3B
+
+D->be
+D->cigs
+D->meds
+
+C 12, D 11
+C: saw
+D: adren
+1L 3B
+
+C->C L
+
+C 11, D 11
+C: saw
+D: adren
+0L 3B
+
+D->D B
+D->D B
+D->D B
+
+C 11, D 11
+C: saw, cigs
+D: adren, inv, cigs, adren, inv
+2L 3B
+
+D->cigs
+D->adren->cigs
+D->D B
+
+C 11, D 13
+C: saw
+D: inv, adren, inv
+2L 2B
+
+D->C B
+
+C 11, D 13
+C: saw
+D: inv, adren, inv
+2L 1B
+
+C->D B
+
+C 11, D 13
+C: saw
+D: inv, adren, inv
+2L 0B
+
+D->adren->saw
+D->C L
+
+C 9, D 13
+C:
+D: inv, inv
+1L 0B
+
+C->D L
+
+C 9, D 12
+C: pho, inv
+D: inv, inv, meds, magn
+3L, 1B
+
+D->meds
+
+C 9, D 11
+C: pho, inv
+D: inv, inv, magn
+3L, 1B
+
+C->pho
+C->inv
+C->C L
+
+C 8, D 11
+C:
+D: inv, inv, magn
+3L, 0B
+
+D->C L
+
+C 7, D 11
+C:
+D: inv, inv, magn
+2L, 0B
+
+C->D L
+
+C 7, D 10
+C:
+D: inv, inv, magn
+1L, 0B
+
+D->C L
+
+C 6, D 10
+C: be, pho
+D: inv, inv, magn, be, pho
+3L, 5B
+
+C->be
+C->pho
+C->C B
+C->C B
+C->D B
+
+C 6, D 10
+C:
+D: inv, inv, magn, be, pho
+2L, 2B
+
+D->magn
+D->inv
+D->pho
+D->C L
+
+C 5, D 10
+C:
+D: inv
+1L, 1B
+
+C->D L
+
+C 5, D 9
+C:
+D: inv
+0L, 1B
+
+D->inv
+D->C L
+
+C 4, D 9
+C:
+D: pho
+5L, 3B
