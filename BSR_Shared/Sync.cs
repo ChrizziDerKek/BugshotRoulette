@@ -88,6 +88,18 @@ public enum ERoundFlags
     RepeatedHealingJustUsed = 1 << 13,
 }
 
+public enum EMusic
+{
+    Undefined,
+    Title,
+    BackgroundClassic,
+    BackgroundIntense,
+    BackgroundBearing,
+    BackgroundJungle,
+    Gameover,
+    Count,
+}
+
 public class SettingsData
 {
     public bool BotDealer;
@@ -630,20 +642,20 @@ class PacketStartRound : Packet
     private EItem[] Items;
     private int Lives;
     private Dictionary<string, List<EItem>> Generated;
-    private bool Intense;
+    private EMusic Music;
     private bool NoItems;
 
     public override EPacket Id => EPacket.StartRound;
 
     public PacketStartRound(List<byte> data) => Receive(data);
 
-    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, bool noitems = false, bool intense = false, int lives = -1)
+    public PacketStartRound(List<EBullet> bullets, EItem[] items, Dictionary<string, List<EItem>> generated, bool noitems = false, EMusic music = EMusic.Undefined, int lives = -1)
     {
         Bullets = bullets;
         Items = items;
         Lives = lives;
         Generated = generated;
-        Intense = intense;
+        Music = music;
         NoItems = noitems;
     }
 
@@ -657,15 +669,17 @@ class PacketStartRound : Packet
 
     public List<EItem> GetGeneratedItems(string player) => Generated.ContainsKey(player) ? Generated[player] : null;
 
-    public bool ShouldPlayIntenseTheme() => Intense;
+    public EMusic GetMusicType() => Music;
 
     public bool NoItemsGenerated() => NoItems;
 
     protected override void Serialize(ISync sync)
     {
         sync.SerializeInt(ref Lives);
-        sync.SerializeBool(ref Intense);
         sync.SerializeBool(ref NoItems);
+        int music = (int)Music;
+        sync.SerializeInt(ref music);
+        Music = (EMusic)music;
         if (Bullets == null)
         {
             Bullets = new List<EBullet>();

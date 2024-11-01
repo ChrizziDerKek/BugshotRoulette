@@ -20,15 +20,6 @@ namespace BSR_Client
         Credits,
     }
 
-    public enum EMusic
-    {
-        Undefined,
-        Title,
-        Background,
-        BackgroundIntense,
-        Gameover,
-    }
-
     public enum EFlags
     {
         None = 0,
@@ -57,10 +48,12 @@ namespace BSR_Client
 
     public class SoundLib
     {
-        private readonly MediaPlayer Title = new MediaPlayer() { Volume = 0.05 };
-        private readonly MediaPlayer Background1 = new MediaPlayer() { Volume = 0.05 };
-        private readonly MediaPlayer Background2 = new MediaPlayer() { Volume = 0.05 };
-        private readonly MediaPlayer End = new MediaPlayer() { Volume = 0.05 };
+        private readonly MediaPlayer Title = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Background1 = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Background2 = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Background3 = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Background4 = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer End = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Empty = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Shot = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer GunpowderShot = new MediaPlayer() { Volume = 0.0 };
@@ -95,21 +88,27 @@ namespace BSR_Client
             Title.MediaEnded -= Media_Ended;
             Background1.MediaEnded -= Media_Ended;
             Background2.MediaEnded -= Media_Ended;
+            Background3.MediaEnded -= Media_Ended;
+            Background4.MediaEnded -= Media_Ended;
             End.MediaEnded -= Media_Ended;
             Title.Stop();
             Background1.Stop();
             Background2.Stop();
+            Background3.Stop();
+            Background4.Stop();
             End.Stop();
             Title.MediaEnded += Media_Ended;
             Background1.MediaEnded += Media_Ended;
             Background2.MediaEnded += Media_Ended;
+            Background3.MediaEnded += Media_Ended;
+            Background4.MediaEnded += Media_Ended;
             End.MediaEnded += Media_Ended;
             switch (id)
             {
                 case EMusic.Title:
                     Title.Play();
                     break;
-                case EMusic.Background:
+                case EMusic.BackgroundClassic:
                     Background1.Play();
                     break;
                 case EMusic.BackgroundIntense:
@@ -117,6 +116,12 @@ namespace BSR_Client
                     break;
                 case EMusic.Gameover:
                     End.Play();
+                    break;
+                case EMusic.BackgroundBearing:
+                    Background3.Play();
+                    break;
+                case EMusic.BackgroundJungle:
+                    Background4.Play();
                     break;
             }
         }
@@ -236,36 +241,46 @@ namespace BSR_Client
         {
             w.Dispatcher.Invoke(() =>
             {
-                Title.Open(new Uri("sounds/bsr_title.wav", UriKind.Relative));
-                Background1.Open(new Uri("sounds/bsr_background1.wav", UriKind.Relative));
-                Background2.Open(new Uri("sounds/bsr_background2.wav", UriKind.Relative));
-                End.Open(new Uri("sounds/bsr_end.wav", UriKind.Relative));
-                Empty.Open(new Uri("sounds/bsr_empty.wav", UriKind.Relative));
-                Shot.Open(new Uri("sounds/bsr_shot.wav", UriKind.Relative));
-                GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.wav", UriKind.Relative));
-                Saw.Open(new Uri("sounds/bsr_saw.wav", UriKind.Relative));
-                Magnify.Open(new Uri("sounds/bsr_magnify.wav", UriKind.Relative));
-                Beer.Open(new Uri("sounds/bsr_beer.wav", UriKind.Relative));
-                Cig.Open(new Uri("sounds/bsr_cig.wav", UriKind.Relative));
-                Handcuff.Open(new Uri("sounds/bsr_handcuff.wav", UriKind.Relative));
-                Inverter.Open(new Uri("sounds/bsr_inverter.wav", UriKind.Relative));
-                Medicine.Open(new Uri("sounds/bsr_medicine.wav", UriKind.Relative));
-                Phone.Open(new Uri("sounds/bsr_phone.wav", UriKind.Relative));
-                Adrenaline.Open(new Uri("sounds/bsr_adrenaline.wav", UriKind.Relative));
-                Magazine.Open(new Uri("sounds/bsr_magazine.wav", UriKind.Relative));
-                Gunpowder.Open(new Uri("sounds/bsr_gunpowder.wav", UriKind.Relative));
-                Bullet.Open(new Uri("sounds/bsr_bullet.wav", UriKind.Relative));
-                Trashbin.Open(new Uri("sounds/bsr_trashbin.wav", UriKind.Relative));
-                Heroine.Open(new Uri("sounds/bsr_heroine.wav", UriKind.Relative));
-                Katana.Open(new Uri("sounds/bsr_katana.wav", UriKind.Relative));
-                Swapper.Open(new Uri("sounds/bsr_swapper.wav", UriKind.Relative));
-                Hat.Open(new Uri("sounds/bsr_hat.wav", UriKind.Relative));
-                Snus.Open(new Uri("sounds/bsr_snus.wav", UriKind.Relative));
+                Title.Open(new Uri("sounds/bsr_title.mp3", UriKind.Relative));
+                Background1.Open(new Uri("sounds/bsr_background1.mp3", UriKind.Relative));
+                Background2.Open(new Uri("sounds/bsr_background2.mp3", UriKind.Relative));
+                Background3.Open(new Uri("sounds/bsr_background3.mp3", UriKind.Relative));
+                Background4.Open(new Uri("sounds/bsr_background4.mp3", UriKind.Relative));
+                End.Open(new Uri("sounds/bsr_end.mp3", UriKind.Relative));
+                Empty.Open(new Uri("sounds/bsr_empty.mp3", UriKind.Relative));
+                Shot.Open(new Uri("sounds/bsr_shot.mp3", UriKind.Relative));
+                GunpowderShot.Open(new Uri("sounds/bsr_gunpowder_shot.mp3", UriKind.Relative));
+                Saw.Open(new Uri("sounds/bsr_saw.mp3", UriKind.Relative));
+                Magnify.Open(new Uri("sounds/bsr_magnify.mp3", UriKind.Relative));
+                Beer.Open(new Uri("sounds/bsr_beer.mp3", UriKind.Relative));
+                Cig.Open(new Uri("sounds/bsr_cig.mp3", UriKind.Relative));
+                Handcuff.Open(new Uri("sounds/bsr_handcuff.mp3", UriKind.Relative));
+                Inverter.Open(new Uri("sounds/bsr_inverter.mp3", UriKind.Relative));
+                Medicine.Open(new Uri("sounds/bsr_medicine.mp3", UriKind.Relative));
+                Phone.Open(new Uri("sounds/bsr_phone.mp3", UriKind.Relative));
+                Adrenaline.Open(new Uri("sounds/bsr_adrenaline.mp3", UriKind.Relative));
+                Magazine.Open(new Uri("sounds/bsr_magazine.mp3", UriKind.Relative));
+                Gunpowder.Open(new Uri("sounds/bsr_gunpowder.mp3", UriKind.Relative));
+                Bullet.Open(new Uri("sounds/bsr_bullet.mp3", UriKind.Relative));
+                Trashbin.Open(new Uri("sounds/bsr_trashbin.mp3", UriKind.Relative));
+                Heroine.Open(new Uri("sounds/bsr_heroine.mp3", UriKind.Relative));
+                Katana.Open(new Uri("sounds/bsr_katana.mp3", UriKind.Relative));
+                Swapper.Open(new Uri("sounds/bsr_swapper.mp3", UriKind.Relative));
+                Hat.Open(new Uri("sounds/bsr_hat.mp3", UriKind.Relative));
+                Snus.Open(new Uri("sounds/bsr_snus.mp3", UriKind.Relative));
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;
                 Background2.MediaEnded += Media_Ended;
+                Background3.MediaEnded += Media_Ended;
+                Background4.MediaEnded += Media_Ended;
                 End.MediaEnded += Media_Ended;
                 Task.Delay(1000).Wait();
+                Title.Volume = 0.05;
+                Background1.Volume = 0.05;
+                Background2.Volume = 0.05;
+                Background3.Volume = 0.05;
+                Background4.Volume = 0.05;
+                End.Volume = 0.05;
                 Empty.Volume = 1.0;
                 Shot.Volume = 1.0;
                 GunpowderShot.Volume = 1.0;

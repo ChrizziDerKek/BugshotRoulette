@@ -135,7 +135,7 @@ namespace BSR_Client
                                 bool initial = packet.ShouldUpdateLives();
                                 if (initial)
                                 {
-                                    Sound.PlayMusic(packet.ShouldPlayIntenseTheme() ? EMusic.BackgroundIntense : EMusic.Background);
+                                    Sound.PlayMusic(packet.GetMusicType());
                                     SetMaxHealth(packet.GetLives());
                                     ResetPlayerSlots();
                                     RemoveInactivePlayerSlots();

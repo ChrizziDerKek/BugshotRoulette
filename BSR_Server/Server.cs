@@ -1439,8 +1439,10 @@ namespace Server
                             session.RoundStart(true);
                             int health = session.GetMaxHealth();
                             string firstplayer = session.GetCurrentPlayer();
-                            bool intense = session.GetRNG().Next(0, 2) == 0;
-                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false, intense, health), session, "Round Start");
+                            EMusic music;
+                            do music = (EMusic)session.GetRNG().Next((int)EMusic.Undefined + 1, (int)EMusic.Count);
+                            while (music == EMusic.Title || music == EMusic.Gameover);
+                            Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false, music, health), session, "Round Start");
                             Broadcast(new PacketPassControl(firstplayer), session, "Pass Control");
                         }
                         break;
