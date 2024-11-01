@@ -801,6 +801,8 @@ namespace Server
             CurrentlyKnownBullet = EBullet.Undefined;
             SetBotFlag(EBotFlag.KnowsCurrentBullet, false);
             SetBotFlag(EBotFlag.CanUseAdrenaline, false);
+            if (bullet == EBullet.Live)
+                SetHealth(target, GetHealth(target) - (HasFlag(ERoundFlags.ShotgunSawedOff) ? 2 : 1));
             if (GetBulletCount() == 0)
             {
                 RoundStart();
@@ -1352,15 +1354,18 @@ namespace Server
                             {
                                 if (session.ShouldSwitchPlayer())
                                 {
+                                    bool botcuffed = false;
                                     if (session.IsBotFlagSet(Session.EBotFlag.CuffedPlayer))
                                     {
                                         session.SetBotFlag(Session.EBotFlag.CuffedPlayer, false);
                                         cuffed = true;
+                                        botcuffed = true;
                                     }
                                     if (cuffed)
                                     {
                                         session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
-                                        session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                        if (!botcuffed)
+                                            session.SetFlag(ERoundFlags.HandcuffsJustUsed);
                                         cuffed = false;
                                     }
                                     else
@@ -1396,28 +1401,23 @@ namespace Server
                                     nextplayer = session.GetCurrentPlayer();
                                 }
                                 bool isbot = session.BotExists() && session.IsBot(nextplayer);
+                                Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
                                 if (!isbot)
-                                {
-                                    Broadcast(new PacketPassControl(nextplayer), session, "Pass Control");
                                     break;
-                                }
-                                else
+                                List<Packet> packets = new List<Packet>();
+                                List<Dictionary<string, Packet>> playerpackets = new List<Dictionary<string, Packet>>();
+                                session.BotTurn(packets, playerpackets);
+                                int index = 0;
+                                foreach (Packet pack in packets)
                                 {
-                                    List<Packet> packets = new List<Packet>();
-                                    List<Dictionary<string, Packet>> playerpackets = new List<Dictionary<string, Packet>>();
-                                    session.BotTurn(packets, playerpackets);
-                                    int index = 0;
-                                    foreach (Packet pack in packets)
+                                    if (pack == null)
                                     {
-                                        if (pack == null)
-                                        {
-                                            Broadcast(cli => playerpackets[index][cli.GetPlayer()], session, "New Round Start");
-                                            index++;
-                                            continue;
-                                        }
-                                        Broadcast(pack, session, "Dealer Sync");
-                                        Thread.Sleep(1000);
+                                        Broadcast(cli => playerpackets[index][cli.GetPlayer()], session, "New Round Start");
+                                        index++;
+                                        continue;
                                     }
+                                    Broadcast(pack, session, "Dealer Sync");
+                                    Thread.Sleep(1000);
                                 }
                             }
                         }
@@ -1439,7 +1439,7 @@ namespace Server
                             session.RoundStart(true);
                             int health = session.GetMaxHealth();
                             string firstplayer = session.GetCurrentPlayer();
-                            EMusic music;
+                            EMusic music = EMusic.BackgroundBearing;
                             do music = (EMusic)session.GetRNG().Next((int)EMusic.Undefined + 1, (int)EMusic.Count);
                             while (music == EMusic.Title || music == EMusic.Gameover);
                             Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false, music, health), session, "Round Start");
@@ -1511,7 +1511,7 @@ namespace Server
                                 {
                                     session.ShouldSwitchPlayer();
                                     session.ResetFlag(ERoundFlags.AgainBecauseCuffed);
-                                    session.SetFlag(ERoundFlags.HandcuffsJustUsed);
+                                    session.ResetFlag(ERoundFlags.HandcuffsJustUsed);
                                     session.SwitchPlayer();
                                     string nextplayer = session.GetCurrentPlayer();
                                     if (session.GetNumAlivePlayers() == 1)
