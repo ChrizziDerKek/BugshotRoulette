@@ -802,7 +802,10 @@ namespace Server
             SetBotFlag(EBotFlag.KnowsCurrentBullet, false);
             SetBotFlag(EBotFlag.CanUseAdrenaline, false);
             if (bullet == EBullet.Live)
+            {
+                ResetFlag(ERoundFlags.RepeatedHealing, target);
                 SetHealth(target, GetHealth(target) - (HasFlag(ERoundFlags.ShotgunSawedOff) ? 2 : 1));
+            }
             if (GetBulletCount() == 0)
             {
                 RoundStart();
