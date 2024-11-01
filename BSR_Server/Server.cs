@@ -993,6 +993,8 @@ namespace Server
                 ClientWorker client = Clients[i];
                 try
                 {
+                    if (!client.DoesPlayerExist())
+                        continue;
                     if (client.GetToken() == cli.GetToken())
                         continue;
                     if (!IsInSession(cli, client))
