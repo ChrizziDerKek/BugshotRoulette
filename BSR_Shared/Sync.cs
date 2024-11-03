@@ -66,6 +66,9 @@ public enum EItem
     Swapper,
     Hat,
     Snus,
+    Elfbar,
+    Scope,
+    Remote,
     Count,
 }
 
@@ -239,10 +242,54 @@ class PacketUsedItem : Packet
     private bool Stealing;
     private EItem[] OtherItems;
     private bool ControlsDisabled;
+    private int NewMaxHealth;
+    private EBullet[] Bullets;
 
     public override EPacket Id => EPacket.UsedItem;
 
     public PacketUsedItem(List<byte> data) => Receive(data);
+
+    public PacketUsedItem(string sender, EBullet[] bullets, string stolenfrom = null, bool controlsdisabled = false)
+    {
+        Sender = sender;
+        Item = EItem.Scope;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+        Index = 0;
+        Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
+        ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = bullets;
+    }
+
+    public PacketUsedItem(string sender, int newmax, string stolenfrom = null, bool controlsdisabled = false)
+    {
+        Sender = sender;
+        Item = EItem.Elfbar;
+        Bullet = EBullet.Undefined;
+        Healed = 0;
+        Index = 0;
+        Inverted = false;
+        Trashed = false;
+        NewItem = EItem.Nothing;
+        Target = null;
+        HasTarget = false;
+        Items = null;
+        StolenFrom = stolenfrom;
+        Stealing = stolenfrom != null;
+        OtherItems = null;
+        ControlsDisabled = controlsdisabled;
+        NewMaxHealth = newmax;
+        Bullets = null;
+    }
 
     public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing, bool controlsdisabled = false)
     {
@@ -261,6 +308,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, string target, EItem[] senderitems, EItem[] targetitems, string stolenfrom = null, bool controlsdisabled = false)
@@ -280,6 +329,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = targetitems;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, string target, EItem[] items, bool controlsdisabled = false)
@@ -299,6 +350,8 @@ class PacketUsedItem : Packet
         Stealing = false;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, string target, EItem item, string stolenfrom = null, bool controlsdisabled = false)
@@ -318,6 +371,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, int healed, bool cigs, string stolenfrom = null, bool controlsdisabled = false)
@@ -337,6 +392,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, EBullet bullet, string stolenfrom = null, int index = 0, bool controlsdisabled = false)
@@ -356,6 +413,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public PacketUsedItem(string sender, EBullet bullet, bool inverted, string stolenfrom = null, bool controlsdisabled = false)
@@ -375,6 +434,8 @@ class PacketUsedItem : Packet
         Stealing = stolenfrom != null;
         OtherItems = null;
         ControlsDisabled = controlsdisabled;
+        NewMaxHealth = 0;
+        Bullets = null;
     }
 
     public string GetSender() => Sender;
@@ -408,6 +469,10 @@ class PacketUsedItem : Packet
     public EItem[] GetOtherItems() => OtherItems;
 
     public bool AreControlsDisabled() => ControlsDisabled;
+
+    public int GetNewMaxHealth() => NewMaxHealth;
+
+    public EBullet[] GetBullets() => Bullets;
 
     protected override void Serialize(ISync sync)
     {
@@ -498,6 +563,35 @@ class PacketUsedItem : Packet
                                 int it = (int)OtherItems[i];
                                 sync.SerializeInt(ref it);
                             }
+                        }
+                    }
+                }
+                break;
+            case EItem.Elfbar:
+                sync.SerializeInt(ref NewMaxHealth);
+                break;
+            case EItem.Scope:
+                {
+                    if (Bullets == null)
+                    {
+                        int count = 0;
+                        sync.SerializeInt(ref count);
+                        Bullets = new EBullet[count];
+                        for (int i = 0; i < count; i++)
+                        {
+                            int bullet = 0;
+                            sync.SerializeInt(ref bullet);
+                            Bullets[i] = (EBullet)bullet;
+                        }
+                    }
+                    else
+                    {
+                        int count = Bullets.Length;
+                        sync.SerializeInt(ref count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            int bullet = (int)Bullets[i];
+                            sync.SerializeInt(ref bullet);
                         }
                     }
                 }

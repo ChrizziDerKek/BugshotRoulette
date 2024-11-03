@@ -37,6 +37,7 @@ namespace Server
         private ERoundFlags NextRoundFlags;
         private EItem LastUsedItem;
         private Dictionary<string, ERoundFlags> PlayerFlags;
+        private bool RoundInverted;
 
         public enum EBotFlag
         {
@@ -88,6 +89,9 @@ namespace Server
             { EItem.Swapper, 1 },
             { EItem.Hat, 1 },
             { EItem.Snus, 1 },
+            { EItem.Elfbar, 1 },
+            { EItem.Scope, 2 },
+            { EItem.Remote, 2 },
             { EItem.Count, 0 },
         };
 
@@ -117,7 +121,10 @@ namespace Server
             CurrentlyKnownBullet = EBullet.Undefined;
             BotShouldTargetPlayer = null;
             BotFlags = EBotFlag.None;
+            RoundInverted = false;
         }
+
+        public void IncreaseMaxHealth() => StartLives++;
 
         public void ResetGame()
         {
@@ -136,6 +143,7 @@ namespace Server
             CurrentlyKnownBullet = EBullet.Undefined;
             BotShouldTargetPlayer = null;
             BotFlags = EBotFlag.None;
+            RoundInverted = false;
         }
 
         public int GetNumAlivePlayers()
@@ -262,6 +270,14 @@ namespace Server
             return bullet;
         }
 
+        public List<EBullet> GetNextBullets()
+        {
+            List<EBullet> result = new List<EBullet>();
+            for (int i = 0; i < Math.Min(3, ActualBullets.Count); i++)
+                result.Add(ActualBullets[i]);
+            return result;
+        }
+
         public int GetBulletCount() => ActualBullets.Count;
 
         public string GetSession() => Code;
@@ -354,9 +370,16 @@ namespace Server
                 return -1;
             SetLastUsedItem(EItem.Nothing);
             ResetGlobalFlags(true);
-            CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
+            int modifier = 1;
+            if (RoundInverted)
+                modifier = -1;
+            CurrentPlayer = (CurrentPlayer + modifier) % Players.Count;
+            if (CurrentPlayer == -1)
+                CurrentPlayer = Players.Count - 1;
             return CurrentPlayer;
         }
+
+        public void InvertRound() => RoundInverted = !RoundInverted;
 
         public List<string> GetRepeatedHealing()
         {
@@ -486,7 +509,7 @@ namespace Server
                         skipped = true;
                         continue;
                     }
-                    if ((item == EItem.Heroine || item == EItem.Katana) && RNG.Next(0, 5) != 0)
+                    if ((item == EItem.Heroine || item == EItem.Katana || item == EItem.Elfbar) && RNG.Next(0, 5) != 0)
                     {
                         item = (EItem)RNG.Next(start, end);
                         if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
@@ -1290,6 +1313,32 @@ namespace Server
                                         session.SetFlag(ERoundFlags.RepeatedHealingJustUsed, user);
                                         Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     }
+                                    break;
+                                case EItem.Elfbar:
+                                    {
+                                        session.IncreaseMaxHealth();
+                                        Broadcast(new PacketUsedItem(user, session.GetMaxHealth(), stealtarget, shouldblock), session, "Item usage");
+                                    }
+                                    break;
+                                case EItem.Scope:
+                                    {
+                                        EBullet[] bullets = session.GetNextBullets().ToArray();
+                                        if (session.GetRNG().Next(0, 3) == 0)
+                                        {
+                                            for (int i = 0; i < bullets.Length; i++)
+                                            {
+                                                if (bullets[i] == EBullet.Live)
+                                                    bullets[i] = EBullet.Blank;
+                                                else if (bullets[i] == EBullet.Blank)
+                                                    bullets[i] = EBullet.Live;
+                                            }
+                                        }
+                                        Broadcast(new PacketUsedItem(user, bullets, stealtarget, shouldblock), session, "Item usage");
+                                    }
+                                    break;
+                                case EItem.Remote:
+                                    session.InvertRound();
+                                    Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
                                     break;
                             }
                         }

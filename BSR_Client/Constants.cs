@@ -75,6 +75,9 @@ namespace BSR_Client
         private readonly MediaPlayer Swapper = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Hat = new MediaPlayer() { Volume = 0.0 };
         private readonly MediaPlayer Snus = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Elfbar = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Scope = new MediaPlayer() { Volume = 0.0 };
+        private readonly MediaPlayer Remote = new MediaPlayer() { Volume = 0.0 };
         private bool WasPlaying = false;
         private EMusic Playing = EMusic.Undefined;
 
@@ -203,6 +206,15 @@ namespace BSR_Client
                 case EItem.Snus:
                     PlayOnce(Snus);
                     break;
+                case EItem.Elfbar:
+                    PlayOnce(Elfbar);
+                    break;
+                case EItem.Scope:
+                    PlayOnce(Scope);
+                    break;
+                case EItem.Remote:
+                    PlayOnce(Remote);
+                    break;
             }
         }
 
@@ -268,6 +280,9 @@ namespace BSR_Client
                 Swapper.Open(new Uri("sounds/bsr_swapper.mp3", UriKind.Relative));
                 Hat.Open(new Uri("sounds/bsr_hat.mp3", UriKind.Relative));
                 Snus.Open(new Uri("sounds/bsr_snus.mp3", UriKind.Relative));
+                Elfbar.Open(new Uri("sounds/bsr_elfbar.mp3", UriKind.Relative));
+                Scope.Open(new Uri("sounds/bsr_scope.mp3", UriKind.Relative));
+                Remote.Open(new Uri("sounds/bsr_remote.mp3", UriKind.Relative));
                 Title.MediaEnded += Media_Ended;
                 Background1.MediaEnded += Media_Ended;
                 Background2.MediaEnded += Media_Ended;
@@ -302,6 +317,9 @@ namespace BSR_Client
                 Swapper.Volume = 1.0;
                 Hat.Volume = 1.0;
                 Snus.Volume = 1.0;
+                Elfbar.Volume = 1.0;
+                Scope.Volume = 1.0;
+                Remote.Volume = 1.0;
                 PlayMusic(EMusic.Title);
             });
         }
@@ -330,6 +348,9 @@ namespace BSR_Client
             { EItem.Swapper, "Swaps your items with the ones with the selected player" },
             { EItem.Hat, "Hides the bullets for every player" },
             { EItem.Snus, "Heals 2 health every round until you get shot" },
+            { EItem.Elfbar, "Increases the maximum health amount by 1" },
+            { EItem.Scope, "Tells you what the next 3 bullets are but the info might not be correct" },
+            { EItem.Remote, "Inverts the player order" },
             { EItem.Count, null },
         };
 

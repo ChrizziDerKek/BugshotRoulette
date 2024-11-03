@@ -373,6 +373,39 @@ namespace BSR_Client
                                     case EItem.Hat:
                                         HideBullets();
                                         break;
+                                    case EItem.Elfbar:
+                                        {
+                                            int newmax = packet.GetNewMaxHealth();
+                                            foreach (ProgressBar healthbar in HealthBars)
+                                                healthbar.Maximum = newmax;
+                                        }
+                                        break;
+                                    case EItem.Scope:
+                                        {
+                                            if (!shouldapply)
+                                                return;
+                                            EBullet[] bullets = packet.GetBullets();
+                                            string first = "";
+                                            string second = "";
+                                            string third = "";
+                                            switch (bullets.Length)
+                                            {
+                                                case 1:
+                                                    first = bullets[0].ToString();
+                                                    break;
+                                                case 2:
+                                                    first = bullets[0].ToString();
+                                                    second = ", " + bullets[1].ToString();
+                                                    break;
+                                                case 3:
+                                                    first = bullets[0].ToString();
+                                                    second = ", " + bullets[1].ToString();
+                                                    third = ", " + bullets[2].ToString();
+                                                    break;
+                                            }
+                                            Announce(string.Format("Possible next 3 Bullets: {0}{1}{2}", first, second, third));
+                                        }
+                                        break;
                                 }
                             }
                             break;
