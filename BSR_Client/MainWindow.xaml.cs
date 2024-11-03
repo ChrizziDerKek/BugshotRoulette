@@ -446,16 +446,10 @@ namespace BSR_Client
             switch (action)
             {
                 case "SessionJoin":
-                    {
-                        if (!IsValidIP(IP.Text))
-                            return;
-                        SetMenuState(EMenuState.Join);
-                    }
+                    SetMenuState(EMenuState.Join);
                     break;
                 case "SessionStart":
                     {
-                        if (!IsValidIP(IP.Text))
-                            return;
                         SetMenuState(EMenuState.Host);
                         Lobby.Text = Guid.NewGuid().ToString();
                     }

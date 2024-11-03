@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Net;
 
 public enum EPacket
 {
@@ -1308,6 +1309,13 @@ public class ClientWorker : IDisposable
 
     public ClientWorker(string ip, int port)
     {
+        if (!IPAddress.TryParse(ip, out _))
+        {
+            if (!ip.Contains("http://"))
+                ip = "http://" + ip;
+            Uri temp = new Uri(ip);
+            ip = Dns.GetHostAddresses(temp.Host).FirstOrDefault().ToString();
+        }
         Socket = new TcpClient(ip, port);
         Stream = Socket.GetStream();
         Lock = new Mutex();
