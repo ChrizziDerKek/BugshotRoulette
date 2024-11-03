@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
+using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -327,6 +328,8 @@ namespace Server
 
         public void Lock() => Locked = true;
 
+        public void Unlock() => Locked = false;
+
         public bool IsLocked() => Locked;
 
         public int GetMaxPlayers() => Settings.MaxPlayers;
@@ -347,6 +350,8 @@ namespace Server
 
         public int SwitchPlayer()
         {
+            if (Players.Count == 0)
+                return -1;
             SetLastUsedItem(EItem.Nothing);
             ResetGlobalFlags(true);
             CurrentPlayer = (CurrentPlayer + 1) % Players.Count;
@@ -555,8 +560,12 @@ namespace Server
                 return 0;
             int count = 0;
             foreach (EItem it in items)
+            {
+                if (it == EItem.Nothing)
+                    continue;
                 if (item == EItem.Count || it == item)
                     count++;
+            }
             return count;
         }
 
@@ -710,7 +719,6 @@ namespace Server
             }
             if (wantstouse != EItem.Nothing)
             {
-                bool done = false;
                 int medsmodifier = 0;
                 switch (wantstouse)
                 {
@@ -734,8 +742,6 @@ namespace Server
                             if (health > maxhealth)
                                 health = maxhealth;
                             SetHealth(BotName, health);
-                            if (medsmodifier == -1)
-                                done = true;
                         }
                         break;
                 }
@@ -782,8 +788,6 @@ namespace Server
                         packets.Add(new PacketUsedItem(BotName, EBullet.Undefined, stealtarget, phoneindex, false));
                         break;
                 }
-                if (done)
-                    return;
                 BotTurn(packets, playerpackets);
                 return;
             }
@@ -806,6 +810,7 @@ namespace Server
                 ResetFlag(ERoundFlags.RepeatedHealing, target);
                 SetHealth(target, GetHealth(target) - (HasFlag(ERoundFlags.ShotgunSawedOff) ? 2 : 1));
             }
+            ResetGlobalFlags();
             if (GetBulletCount() == 0)
             {
                 RoundStart();
@@ -1060,6 +1065,11 @@ namespace Server
                                 }
                                 session.SetFlag(ERoundFlags.StealingItems, user);
                                 session.SetFlag(ERoundFlags.StealingTarget, target);
+                                if (session.GetItemCount(target) == 0)
+                                {
+                                    session.ResetFlag(ERoundFlags.StealingItems, user);
+                                    session.ResetFlag(ERoundFlags.StealingTarget, target);
+                                }
                                 Broadcast(new PacketUsedItem(user, target, session.GetItems(target)), session, "Item usage");
                                 return;
                             }
@@ -1202,6 +1212,11 @@ namespace Server
                                         session.SetFlag(ERoundFlags.StealingTarget, target);
                                         if (session.HasFlag(ERoundFlags.HasKatanaEffect, user))
                                             session.SetFlag(ERoundFlags.AllowOnce);
+                                        if (session.GetItemCount(target) == 0)
+                                        {
+                                            session.ResetFlag(ERoundFlags.StealingItems, user);
+                                            session.ResetFlag(ERoundFlags.StealingTarget, target);
+                                        }
                                         Broadcast(new PacketUsedItem(user, target, session.GetItems(target), shouldblock), session, "Item usage");
                                     }
                                     break;
@@ -1398,6 +1413,7 @@ namespace Server
                                 if (session.GetNumAlivePlayers() == 1)
                                 {
                                     Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                    session.Unlock();
                                     return;
                                 }
                                 while (session.GetHealth(nextplayer) <= 0)
@@ -1509,6 +1525,7 @@ namespace Server
                                     if (session.GetNumAlivePlayers() == 1)
                                     {
                                         Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        session.Unlock();
                                         return;
                                     }
                                 }
@@ -1522,6 +1539,7 @@ namespace Server
                                     if (session.GetNumAlivePlayers() == 1)
                                     {
                                         Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        session.Unlock();
                                         return;
                                     }
                                     while (session.GetHealth(nextplayer) <= 0)

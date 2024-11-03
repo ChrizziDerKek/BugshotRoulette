@@ -330,7 +330,11 @@ namespace BSR_Client
                                             else
                                             {
                                                 Announce("Nothing to steal");
+                                                ResetFlag(EFlags.UsingAdrenaline);
+                                                ResetFlag(EFlags.AdrenalinePending);
                                                 RestoreItems();
+                                                SetPlayersInteractable(false, true);
+                                                SetActive(true);
                                             }
                                         }
                                         break;
