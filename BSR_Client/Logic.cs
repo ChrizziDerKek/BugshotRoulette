@@ -126,6 +126,27 @@ namespace BSR_Client
                 it.IsEnabled = false;
         }
 
+        public void SetTurnIndicator(bool active)
+        {
+            if (!active)
+            {
+                TurnIndicator.BorderBrush = Brushes.Transparent;
+                return;
+            }
+            Brush color = Brushes.Green;
+            if (IsFlagSet(EFlags.ItemUsageBlockedCompletely))
+            {
+                color = Brushes.Red;
+                ResetFlag(EFlags.ItemUsageBlockedCompletely);
+            }
+            else if (IsFlagSet(EFlags.ItemUsageBlockedPartially))
+            {
+                color = Brushes.Yellow;
+                ResetFlag(EFlags.ItemUsageBlockedPartially);
+            }
+            TurnIndicator.BorderBrush = color;
+        }
+
         public void SetActive(bool active)
         {
             Shoot.IsEnabled = active;
@@ -134,10 +155,7 @@ namespace BSR_Client
             foreach (Button it in PlayerDisplays)
                 it.IsEnabled = false;
             if (active && IsFlagSet(EFlags.ItemUsageBlockedCompletely))
-            {
                 BlockItems();
-                ResetFlag(EFlags.ItemUsageBlockedCompletely);
-            }
             if (active && IsFlagSet(EFlags.HandcuffUsageBlocked))
                 LockItem(EItem.Handcuffs);
         }

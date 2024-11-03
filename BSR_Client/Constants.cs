@@ -31,6 +31,7 @@ namespace BSR_Client
         ItemUsageBlockedCompletely = 1 << 5,
         AdrenalinePending = 1 << 6,
         GameEnded = 1 << 7,
+        ItemUsageBlockedPartially = 1 << 8,
     }
 
     public class SettingsItem

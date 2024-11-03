@@ -306,14 +306,15 @@ namespace Server
                 Locked = true;
         }
 
-        public void AddBot()
+        public bool AddBot()
         {
             if (Players.Contains(BotName))
-                return;
+                return false;
             Players.Add(BotName);
             BotAdded = true;
             if (Players.Count >= Settings.MaxPlayers)
                 Locked = true;
+            return true;
         }
 
         public void RemovePlayer(string player)
@@ -330,7 +331,13 @@ namespace Server
                 Locked = false;
         }
 
-        public void RemoveBot() => RemovePlayer(BotName);
+        public bool RemoveBot()
+        {
+            if (!Players.Contains(BotName))
+                return false;
+            RemovePlayer(BotName);
+            return true;
+        }
 
         public void FixHostQueue(string player) => NextHosts = new Queue<string>(NextHosts.Where(h => h != player));
 
@@ -853,7 +860,10 @@ namespace Server
             {
                 if (IsBot(player))
                     continue;
-                for (int i = 0; i < PlayerHealth[player]; i++)
+                int count = PlayerHealth[player];
+                if (HasFlag(ERoundFlags.RepeatedHealing, player))
+                    count *= 2;
+                for (int i = 0; i < count; i++)
                     decisions.Add(player);
             }
             int decision = RNG.Next(0, decisions.Count);
@@ -1480,6 +1490,7 @@ namespace Server
                                 int index = 0;
                                 foreach (Packet pack in packets)
                                 {
+                                    Thread.Sleep(2000);
                                     if (pack == null)
                                     {
                                         Broadcast(cli => playerpackets[index][cli.GetPlayer()], session, "New Round Start");
@@ -1487,7 +1498,6 @@ namespace Server
                                         continue;
                                     }
                                     Broadcast(pack, session, "Dealer Sync");
-                                    Thread.Sleep(1000);
                                 }
                             }
                         }
@@ -1529,13 +1539,13 @@ namespace Server
                             session.UpdateSettings(packet.GetSettings());
                             if (packet.GetSettings().BotDealer && !session.IsLocked())
                             {
-                                session.AddBot();
-                                Broadcast(new PacketNewPlayer(session.GetBotName()), session, "Bot Join Sync");
+                                if (session.AddBot())
+                                    Broadcast(new PacketNewPlayer(session.GetBotName()), session, "Bot Join Sync");
                             }
                             else
                             {
-                                session.RemoveBot();
-                                Broadcast(new PacketRemoveLocalPlayer(session.GetBotName(), null), session, "Bot Local Removal");
+                                if (session.RemoveBot())
+                                    Broadcast(new PacketRemoveLocalPlayer(session.GetBotName(), null), session, "Bot Local Removal");
                             }
                         }
                         break;

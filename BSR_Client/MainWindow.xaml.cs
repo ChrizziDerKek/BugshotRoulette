@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
+using System.Windows.Media;
 
 namespace BSR_Client
 {
@@ -151,10 +151,12 @@ namespace BSR_Client
                                     ResetFlag(EFlags.HandcuffUsageBlocked);
                                     ResetPlayerItemFlags();
                                     Announce(packet.GetTarget() + "'s turn");
+                                    SetTurnIndicator(false);
                                     return;
                                 }
                                 SetActive(true);
                                 Announce("Your turn");
+                                SetTurnIndicator(true);
                             }
                             break;
                         case EPacket.Shoot:
@@ -358,6 +360,7 @@ namespace BSR_Client
                                         if (!shouldtarget)
                                             return;
                                         Announce("You can only use 1 Item next Round");
+                                        SetFlag(EFlags.ItemUsageBlockedPartially);
                                         break;
                                     case EItem.Swapper:
                                         {
@@ -403,7 +406,7 @@ namespace BSR_Client
                                                     third = ", " + bullets[2].ToString();
                                                     break;
                                             }
-                                            Announce(string.Format("Possible next 3 Bullets: {0}{1}{2}", first, second, third));
+                                            Announce(string.Format("Possible next Bullets: {0}{1}{2}", first, second, third));
                                         }
                                         break;
                                 }
