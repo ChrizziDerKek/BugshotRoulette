@@ -206,24 +206,29 @@ class PacketRoundHeal : Packet
 class PacketEndGame : Packet
 {
     private string Winner;
+    private int Score;
 
     public override EPacket Id => EPacket.EndGame;
 
     public PacketEndGame(List<byte> data) => Receive(data);
 
-    public PacketEndGame(string winner)
+    public PacketEndGame(string winner, int score)
     {
         Winner = winner;
+        Score = score;
     }
 
     public string GetWinner() => Winner;
 
+    public int GetScore() => Score;
+
     protected override void Serialize(ISync sync)
     {
         sync.SerializeStr(ref Winner);
+        sync.SerializeInt(ref Score);
     }
 
-    public override string ToString() => string.Format("{0}: Winner {1}", Id.ToString(), Winner);
+    public override string ToString() => string.Format("{0}: Winner {1}, Score {2}", Id.ToString(), Winner, Score);
 }
 
 class PacketUsedItem : Packet

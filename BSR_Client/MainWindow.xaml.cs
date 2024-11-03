@@ -419,6 +419,7 @@ namespace BSR_Client
                                 Sound.PlayMusic(EMusic.Gameover);
                                 SetFlag(EFlags.GameEnded);
                                 Winner.Text = packet.GetWinner() + " won!";
+                                Score.Text = "Your Score: " + packet.GetScore();
                             }
                             break;
                         case EPacket.RoundHeal:

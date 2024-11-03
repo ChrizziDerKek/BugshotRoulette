@@ -23,8 +23,9 @@
     <Grid>
         <Grid Name="Gameover" Visibility="Hidden">
             <Image Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
-            <StackPanel Orientation="Vertical" Margin="0,500,0,0">
+            <StackPanel Orientation="Vertical" Margin="0,450,0,0">
                 <TextBlock Name="Winner" Text="Playername won!" Foreground="White" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Name="Score" Text="Your Score:" Foreground="White" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Button Background="Black" Foreground="White" Name="RestartGame" Content="Play again" Margin="250,25,250,-25" Click="Button_Click" Visibility="Hidden"/>
             </StackPanel>
         </Grid>

@@ -10,7 +10,6 @@ using System.Security.Cryptography;
 using System.Linq;
 using System.Data;
 using System.Threading;
-using static System.Collections.Specialized.BitVector32;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -38,6 +37,7 @@ namespace Server
         private EItem LastUsedItem;
         private Dictionary<string, ERoundFlags> PlayerFlags;
         private bool RoundInverted;
+        private Dictionary<string, int> Scores;
 
         public enum EBotFlag
         {
@@ -122,6 +122,21 @@ namespace Server
             BotShouldTargetPlayer = null;
             BotFlags = EBotFlag.None;
             RoundInverted = false;
+            Scores = new Dictionary<string, int>();
+        }
+
+        public int GetScore(string player)
+        {
+            if (!Scores.ContainsKey(player))
+                return 0;
+            return Scores[player];
+        }
+
+        public void AddScore(string player, int score)
+        {
+            if (!Scores.ContainsKey(player))
+                Scores.Add(player, 0);
+            Scores[player] += score;
         }
 
         public void IncreaseMaxHealth() => StartLives++;
@@ -839,6 +854,7 @@ namespace Server
             {
                 ResetFlag(ERoundFlags.RepeatedHealing, target);
                 SetHealth(target, GetHealth(target) - (HasFlag(ERoundFlags.ShotgunSawedOff) ? 2 : 1));
+                AddScore(target, -50);
             }
             ResetGlobalFlags();
             if (GetBulletCount() == 0)
@@ -1159,6 +1175,7 @@ namespace Server
                             }
                             if (once)
                                 shouldblock = item != EItem.Adrenaline;
+                            session.AddScore(user, 500);
                             switch (item)
                             {
                                 case EItem.Handcuffs:
@@ -1176,6 +1193,7 @@ namespace Server
                                     {
                                         int health = session.GetHealth(user);
                                         session.SetHealth(user, health + 1);
+                                        session.AddScore(user, 300);
                                         Broadcast(new PacketUsedItem(user, 1, true, stealtarget, shouldblock), session, "Item usage");
                                     }
                                     break;
@@ -1193,6 +1211,7 @@ namespace Server
                                     break;
                                 case EItem.Beer:
                                     {
+                                        session.AddScore(user, 300);
                                         EBullet bullet = session.PopBullet();
                                         bool inverted = session.HasFlag(ERoundFlags.ShotInverted);
                                         session.ResetGlobalFlags();
@@ -1220,6 +1239,7 @@ namespace Server
                                         int modifier = 2;
                                         if (session.GetRNG().Next(0, 2) == 0)
                                             modifier = -1;
+                                        session.AddScore(user, modifier == -1 ? -300 : 400);
                                         session.SetHealth(user, health + modifier);
                                         Broadcast(new PacketUsedItem(user, modifier, false, stealtarget, shouldblock), session, "Item usage");
                                     }
@@ -1382,7 +1402,14 @@ namespace Server
                             }
                             EBullet type = session.PopBullet();
                             if (actualsender == target && type == EBullet.Blank)
+                            {
                                 session.SetAgain();
+                                session.AddScore(actualsender, 300);
+                            }
+                            else if (actualsender == target && type == EBullet.Live)
+                                session.AddScore(actualsender, -500);
+                            if ((actualsender == target && type == EBullet.Blank) || (actualsender != target && type == EBullet.Live))
+                                session.AddScore(actualsender, 300);
                             bool backfired = false;
                             int damage = 0;
                             if (type == EBullet.Live)
@@ -1405,9 +1432,31 @@ namespace Server
                             health -= damage;
                             if (health < 0)
                                 health = 0;
+                            if (health == 0)
+                                session.AddScore(actualsender, 1000);
+                            else if (actualsender == target)
+                                session.AddScore(actualsender, 200);
+                            switch (damage)
+                            {
+                                case 1:
+                                    session.AddScore(actualsender, 500);
+                                    break;
+                                case 2:
+                                    session.AddScore(actualsender, 800);
+                                    break;
+                                case 3:
+                                    session.AddScore(actualsender, backfired ? -400 : 1000);
+                                    break;
+                                case 4:
+                                    session.AddScore(actualsender, backfired ? -800 : 2000);
+                                    break;
+                            }
                             session.SetHealth(target, health);
                             if (damage > 0)
+                            {
                                 session.ResetFlag(ERoundFlags.RepeatedHealing, target);
+                                session.AddScore(target, -50);
+                            }
                             ERoundFlags flags = session.GetRoundFlags();
                             if (backfired)
                                 flags |= ERoundFlags.GunpowderBackfired;
@@ -1463,15 +1512,21 @@ namespace Server
                                                 }
                                                 session.SetHealth(player, session.GetHealth(player) + 2);
                                                 targets.Add(player);
+                                                session.AddScore(player, 50);
                                             }
                                             Broadcast(new PacketRoundHeal(targets, 2), session, "Round heal");
                                         }
                                     }
                                 }
                                 string nextplayer = session.GetCurrentPlayer();
+                                foreach (string player in session.GetPlayers())
+                                    if (!session.IsDead(player))
+                                        session.AddScore(player, 500);
                                 if (session.GetNumAlivePlayers() == 1)
                                 {
-                                    Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                    string winner = session.GetWinner();
+                                    session.AddScore(winner, 5000);
+                                    Broadcast(cli => new PacketEndGame(winner, session.GetScore(cli.GetPlayer())), session, "Game over");
                                     session.Unlock();
                                     return;
                                 }
@@ -1583,7 +1638,9 @@ namespace Server
                                     Broadcast(new PacketRemoveLocalPlayer(player, didMigrate ? session.GetHost() : null), sender, "Local Removal");
                                     if (session.GetNumAlivePlayers() == 1)
                                     {
-                                        Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        string winner = session.GetWinner();
+                                        session.AddScore(winner, 5000);
+                                        Broadcast(cli => new PacketEndGame(winner, session.GetScore(cli.GetPlayer())), session, "Game over");
                                         session.Unlock();
                                         return;
                                     }
@@ -1597,7 +1654,9 @@ namespace Server
                                     string nextplayer = session.GetCurrentPlayer();
                                     if (session.GetNumAlivePlayers() == 1)
                                     {
-                                        Broadcast(new PacketEndGame(session.GetWinner()), session, "Game over");
+                                        string winner = session.GetWinner();
+                                        session.AddScore(winner, 5000);
+                                        Broadcast(cli => new PacketEndGame(winner, session.GetScore(cli.GetPlayer())), session, "Game over");
                                         session.Unlock();
                                         return;
                                     }
