@@ -7,7 +7,6 @@ using System.ComponentModel;
 using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Threading.Tasks;
-using System.Windows.Media;
 
 namespace BSR_Client
 {
