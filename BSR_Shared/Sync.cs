@@ -90,6 +90,7 @@ public enum ERoundFlags
     AllowOnce = 1 << 11,
     RepeatedHealing = 1 << 12,
     RepeatedHealingJustUsed = 1 << 13,
+    AttackedDealer = 1 << 14,
 }
 
 public enum EMusic
