@@ -5,6 +5,7 @@ using System.Net;
 using System.Linq;
 using System.Data;
 using System.Threading;
+using System.Security.Cryptography;
 
 #pragma warning disable IDE0044
 #pragma warning disable IDE0058
@@ -13,13 +14,13 @@ namespace Server
 {
     public class Session
     {
+        private RandomNumberGenerator Generator;
         private string Host;
         private List<string> Players;
         private Queue<string> NextHosts;
         private bool Locked;
         private SettingsData Settings;
         private int CurrentPlayer;
-        private Random RNG;
         private Dictionary<string, EItem[]> PlayerItems;
         private Dictionary<string, int> PlayerHealth;
         private List<EBullet> ActualBullets;
@@ -52,6 +53,18 @@ namespace Server
         private EBullet CurrentlyKnownBullet;
         private bool? BotShouldTargetPlayer;
         private EBotFlag BotFlags;
+
+        public int RNG(int min, int max)
+        {
+            byte[] data = new byte[4];
+            Generator.GetBytes(data);
+            int sample = BitConverter.ToInt32(data, 0);
+            if (sample < 0)
+                sample += int.MaxValue;
+            long difference = (long)max - min;
+            double rand = sample * 4.6566128752457969E-10;
+            return (int)(rand * difference) + min;
+        }
 
         public bool IsBotFlagSet(EBotFlag flag) => (BotFlags & flag) != 0;
 
@@ -98,7 +111,6 @@ namespace Server
             NextHosts = new Queue<string>();
             Settings = new SettingsData();
             CurrentPlayer = 0;
-            RNG = new Random();
             PlayerItems = new Dictionary<string, EItem[]>();
             ActualBullets = new List<EBullet>();
             DisplayedBullets = new List<EBullet>();
@@ -118,6 +130,7 @@ namespace Server
             BotFlags = EBotFlag.None;
             RoundInverted = false;
             Scores = new Dictionary<string, int>();
+            Generator = RandomNumberGenerator.Create();
         }
 
         public int GetScore(string player)
@@ -254,8 +267,6 @@ namespace Server
 
         public Dictionary<string, List<EItem>> GetLastGeneratedItems() => LastGeneratedItems;
 
-        public Random GetRNG() => RNG;
-
         public int GetHealth(string player) => PlayerHealth.ContainsKey(player) ? PlayerHealth[player] : 0;
 
         public void SetHealth(string player, int health)
@@ -373,7 +384,7 @@ namespace Server
 
         public void SetFirstPlayer()
         {
-            do CurrentPlayer = RNG.Next(0, Players.Count);
+            do CurrentPlayer = RNG(0, Players.Count);
             while (IsBot(Players[CurrentPlayer]));
         }
 
@@ -409,7 +420,7 @@ namespace Server
 
         public void RoundStart(bool initial = false, bool noitems = false)
         {
-            int nitems = RNG.Next(Settings.MinItems, Settings.MaxItems + 1);
+            int nitems = RNG(Settings.MinItems, Settings.MaxItems + 1);
             GenerateBullets();
             if (!noitems)
             {
@@ -434,13 +445,13 @@ namespace Server
 
         public void PushBullet()
         {
-            bool live = RNG.Next(0, 2) == 0;
+            bool live = RNG(0, 2) == 0;
             ActualBullets.Add(live ? EBullet.Live : EBullet.Blank);
             DisplayedBullets.Add(EBullet.Undefined);
             BulletIsKnown.Add(false);
         }
 
-        private void GenerateLives() => StartLives = RNG.Next(Settings.MinHealth, Settings.MaxHealth + 1);
+        private void GenerateLives() => StartLives = RNG(Settings.MinHealth, Settings.MaxHealth + 1);
 
         private void GenerateBullets()
         {
@@ -448,8 +459,8 @@ namespace Server
             DisplayedBullets.Clear();
             int min = Settings.MinBullets;
             int max = Settings.MaxBullets;
-            int even = RNG.Next(0, 100);
-            int ntotal = RNG.Next(min, max + 1);
+            int even = RNG(0, 100);
+            int ntotal = RNG(min, max + 1);
             if (even > 40 && ntotal % 2 != 0 && ntotal < max)
                 ntotal++;
             int nblank = 0;
@@ -460,17 +471,17 @@ namespace Server
                     break;
                 case 3:
                 case 4:
-                    nblank = RNG.Next(1, ntotal);
+                    nblank = RNG(1, ntotal);
                     break;
                 case 5:
                 case 6:
-                    nblank = RNG.Next(2, 4);
+                    nblank = RNG(2, 4);
                     break;
                 case 7:
-                    nblank = RNG.Next(3, 5);
+                    nblank = RNG(3, 5);
                     break;
                 case 8:
-                    nblank = RNG.Next(3, 6);
+                    nblank = RNG(3, 6);
                     break;
             }
             int nlive = ntotal - nblank;
@@ -513,7 +524,7 @@ namespace Server
                         item = EItem.Nothing;
                         break;
                     }
-                    item = (EItem)RNG.Next(start, end);
+                    item = (EItem)RNG(start, end);
                     if (bypasslimits && (item == EItem.Trashbin || item == GetLastUsedItem()))
                     {
                         attempts--;
@@ -526,9 +537,9 @@ namespace Server
                         skipped = true;
                         continue;
                     }
-                    if ((item == EItem.Heroine || item == EItem.Katana || item == EItem.Elfbar) && RNG.Next(0, 5) != 0)
+                    if ((item == EItem.Heroine || item == EItem.Katana || item == EItem.Elfbar) && RNG(0, 5) != 0)
                     {
-                        item = (EItem)RNG.Next(start, end);
+                        item = (EItem)RNG(start, end);
                         if (Settings.EnabledItems.TryGetValue(item, out enabled) && !enabled)
                         {
                             attempts--;
@@ -614,13 +625,13 @@ namespace Server
             int n = ActualBullets.Count;
             while (n > 1)
             {
-                int r = RNG.Next(n--);
+                int r = RNG(0, n--);
                 (ActualBullets[r], ActualBullets[n]) = (ActualBullets[n], ActualBullets[r]);
             }
             n = DisplayedBullets.Count;
             while (n > 1)
             {
-                int r = RNG.Next(n--);
+                int r = RNG(0, n--);
                 (DisplayedBullets[r], DisplayedBullets[n]) = (DisplayedBullets[n], DisplayedBullets[r]);
             }
         }
@@ -728,7 +739,7 @@ namespace Server
                     case EItem.Phone:
                         if (bulletcount >= 2)
                         {
-                            int decision = RNG.Next(1, bulletcount);
+                            int decision = RNG(1, bulletcount);
                             if (decision == 8)
                                 decision--;
                             BulletIsKnown[decision] = true;
@@ -772,7 +783,7 @@ namespace Server
                         break;
                     case EItem.Medicine:
                         {
-                            if (RNG.Next(0, 2) == 0)
+                            if (RNG(0, 2) == 0)
                                 medsmodifier = -1;
                             else
                                 medsmodifier = 2;
@@ -874,10 +885,15 @@ namespace Server
                 int count = PlayerHealth[player];
                 if (HasFlag(ERoundFlags.RepeatedHealing, player))
                     count *= 2;
+                if (HasFlag(ERoundFlags.AttackedDealer, player))
+                {
+                    ResetFlag(ERoundFlags.AttackedDealer, player);
+                    count *= 2;
+                }
                 for (int i = 0; i < count; i++)
                     decisions.Add(player);
             }
-            int decision = RNG.Next(0, decisions.Count);
+            int decision = RNG(0, decisions.Count);
             return decisions[decision];
         }
 
@@ -893,7 +909,7 @@ namespace Server
         private bool CoinFlip()
         {
             if (Settings.DunceDealer)
-                return RNG.Next(0, 2) == 0;
+                return RNG(0, 2) == 0;
             int nlive = 0;
             int nblank = 0;
             foreach (EBullet bullet in GetBullets(false))
@@ -904,7 +920,7 @@ namespace Server
                     nlive++;
             }
             if (nlive == nblank)
-                return RNG.Next(0, 2) == 0;
+                return RNG(0, 2) == 0;
             return nlive > nblank;
         }
 
@@ -1232,7 +1248,7 @@ namespace Server
                                     {
                                         int health = session.GetHealth(user);
                                         int modifier = 2;
-                                        if (session.GetRNG().Next(0, 2) == 0)
+                                        if (session.RNG(0, 2) == 0)
                                             modifier = -1;
                                         session.AddScore(user, modifier == -1 ? -300 : 400);
                                         session.SetHealth(user, health + modifier);
@@ -1244,7 +1260,7 @@ namespace Server
                                         List<EBullet> bullets = session.GetBullets(false);
                                         int index = -1;
                                         if (bullets.Count > 1)
-                                            index = session.GetRNG().Next(1, bullets.Count);
+                                            index = session.RNG(1, bullets.Count);
                                         EBullet bullet = index == -1 ? EBullet.Undefined : bullets[index];
                                         Broadcast(cli => new PacketUsedItem(user, cli.GetPlayer() == user ? bullet : EBullet.Undefined, stealtarget, index, shouldblock), session, "Item usage");
                                     }
@@ -1348,7 +1364,7 @@ namespace Server
                                 case EItem.Scope:
                                     {
                                         EBullet[] bullets = session.GetNextBullets().ToArray();
-                                        if (session.GetRNG().Next(0, 3) == 0)
+                                        if (session.RNG(0, 3) == 0)
                                         {
                                             for (int i = 0; i < bullets.Length; i++)
                                             {
@@ -1415,7 +1431,7 @@ namespace Server
                                 if (session.HasFlag(ERoundFlags.ShotGunpowdered))
                                 {
                                     damage += 2;
-                                    if (session.GetRNG().Next(0, 2) == 0)
+                                    if (session.RNG(0, 2) == 0)
                                     {
                                         target = actualsender;
                                         backfired = true;
@@ -1451,6 +1467,8 @@ namespace Server
                             {
                                 session.ResetFlag(ERoundFlags.RepeatedHealing, target);
                                 session.AddScore(target, -50);
+                                if (session.IsBot(target))
+                                    session.SetFlag(ERoundFlags.AttackedDealer, actualsender);
                             }
                             ERoundFlags flags = session.GetRoundFlags();
                             if (backfired)
@@ -1570,7 +1588,7 @@ namespace Server
                             int health = session.GetMaxHealth();
                             string firstplayer = session.GetCurrentPlayer();
                             EMusic music = EMusic.BackgroundBearing;
-                            do music = (EMusic)session.GetRNG().Next((int)EMusic.Undefined + 1, (int)EMusic.Count);
+                            do music = (EMusic)session.RNG((int)EMusic.Undefined + 1, (int)EMusic.Count);
                             while (music == EMusic.Title || music == EMusic.Gameover);
                             Broadcast(cli => new PacketStartRound(session.GetBullets(true), session.GetItems(cli.GetPlayer()), session.GetLastGeneratedItems(), false, music, health), session, "Round Start");
                             Broadcast(new PacketPassControl(firstplayer), session, "Pass Control");
