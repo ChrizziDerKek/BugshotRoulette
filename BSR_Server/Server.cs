@@ -798,19 +798,24 @@ namespace Server
                 }
                 bool stealing = !RemoveItem(BotName, wantstouse);
                 string stealtarget = null;
-                foreach (KeyValuePair<EItem, string> it in availableitems)
+                if (stealing)
                 {
-                    EItem item = it.Key;
-                    string player = it.Value;
-                    if (item == wantstouse && stealing && wantstouse != EItem.Adrenaline)
+                    List<string> possibletargets = new List<string>();
+                    foreach (KeyValuePair<EItem, string> it in availableitems)
                     {
-                        stealtarget = player;
-                        packets.Add(new PacketUsedItem(BotName, player, null, false));
-                        RemoveItem(BotName, EItem.Adrenaline);
-                        RemoveItem(player, wantstouse);
-                        SetBotFlag(EBotFlag.CanUseAdrenaline, false);
-                        break;
+                        EItem item = it.Key;
+                        string player = it.Value;
+                        if (item == wantstouse && wantstouse != EItem.Adrenaline)
+                            possibletargets.Add(player);
                     }
+                    if (possibletargets.Count == 1)
+                        stealtarget = possibletargets[0];
+                    else
+                        stealtarget = possibletargets[RNG(0, possibletargets.Count)];
+                    packets.Add(new PacketUsedItem(BotName, stealtarget, null, false));
+                    RemoveItem(BotName, EItem.Adrenaline);
+                    RemoveItem(stealtarget, wantstouse);
+                    SetBotFlag(EBotFlag.CanUseAdrenaline, false);
                 }
                 switch (wantstouse)
                 {
