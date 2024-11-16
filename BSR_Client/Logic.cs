@@ -514,6 +514,7 @@ namespace BSR_Client
                 SettingsDunceDealer.IsChecked == true,
                 SettingsOriginalItemsOnly.IsChecked == true,
                 SettingsNoItems.IsChecked == true,
+                SettingsBetaInverters.IsChecked == true,
                 enabled
             );
             Packet.Send(new PacketUpdateSettings(data), Sync);

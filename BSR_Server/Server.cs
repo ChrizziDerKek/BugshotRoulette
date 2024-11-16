@@ -133,6 +133,8 @@ namespace Server
             Generator = RandomNumberGenerator.Create();
         }
 
+        public bool UsingBetaInverters() => Settings.BetaInverters;
+
         public int GetScore(string player)
         {
             if (!Scores.ContainsKey(player))
@@ -1246,7 +1248,13 @@ namespace Server
                                         else
                                             session.SetFlag(ERoundFlags.ShotInverted);
                                         session.InvertBullet();
-                                        Broadcast(new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock), session, "Item usage");
+                                        Broadcast(cli =>
+                                        {
+                                            EBullet bullet = EBullet.Undefined;
+                                            if (cli.GetPlayer() == user && session.UsingBetaInverters())
+                                                bullet = session.GetNextBullet();
+                                            return new PacketUsedItem(user, item, stealtarget, false, EItem.Nothing, shouldblock, bullet);
+                                        }, session, "Item usage");
                                     }
                                     break;
                                 case EItem.Medicine:

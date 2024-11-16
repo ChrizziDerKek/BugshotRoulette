@@ -66,8 +66,8 @@
                 </Grid>
             </StackPanel>
         </Grid>
-        <Grid Name="Login" Visibility="Hidden">
-            <Image Name="TitleImage" Visibility="Visible" Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
+        <Grid Name="Login" Visibility="Visible">
+            <Image Name="TitleImage" Visibility="Hidden" Source="textures/title.jpg" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Fill"/>
             <StackPanel Orientation="Vertical" Margin="250,450,250,0" Name="MenuSessionStart" Visibility="Hidden">
                 <TextBlock Text="Session:" HorizontalAlignment="Center" Foreground="White"/>
                 <TextBox Background="Black" Foreground="White" Name="Lobby" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" IsReadOnly="True" HorizontalContentAlignment="Center" PreviewMouseDown="TextBox_PreviewMouseDown"/>
@@ -86,7 +86,7 @@
                 <TextBlock Text="" HorizontalAlignment="Center" Foreground="White"/>
                 <Button Background="Black" Foreground="White" Name="Connect" HorizontalAlignment="Center" VerticalAlignment="Center" Width="230" Height="25" Content="Connect" Click="Button_Click"/>
             </StackPanel>
-            <Grid Name="MenuSettings" Visibility="Hidden" Margin="200,0,200,0">
+            <Grid Name="MenuSettings" Visibility="Visible" Margin="200,0,200,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="4*"/>
@@ -158,6 +158,11 @@
                         <TextBlock Text="No Items:" Foreground="White"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsNoItems" IsChecked="False"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Beta Inverters:" Foreground="White"/>
+                        <TextBlock Width="5"/>
+                        <CheckBox Name="SettingsBetaInverters" IsChecked="False"/>
                     </StackPanel>
                 </StackPanel>
                 <ListView HorizontalAlignment="Stretch" Grid.Row="1" Name="SettingsItems" TextBlock.Foreground="White" Background="Transparent" Margin="5">

@@ -292,6 +292,18 @@ namespace BSR_Client
                                     case EItem.Cigarettes:
                                         UpdateHealth(GetHealth(user) + packet.GetHealAmount(), user);
                                         break;
+                                    case EItem.Inverter:
+                                        {
+                                            EBullet bullet = packet.GetBullet();
+                                            if (shouldapply && bullet != EBullet.Undefined)
+                                            {
+                                                if (bullet == EBullet.Live)
+                                                    Announce("Inverted blank Bullet to live");
+                                                else if (bullet == EBullet.Blank)
+                                                    Announce("Inverted live Bullet to blank");
+                                            }
+                                        }
+                                        break;
                                     case EItem.Phone:
                                         {
                                             if (!shouldapply)

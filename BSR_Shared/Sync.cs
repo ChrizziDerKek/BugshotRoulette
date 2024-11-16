@@ -118,9 +118,10 @@ public class SettingsData
     public bool DunceDealer;
     public bool OriginalItemsOnly;
     public bool NoItems;
+    public bool BetaInverters;
     public Dictionary<EItem, bool> EnabledItems;
 
-    public SettingsData(bool botDealer, int maxPlayers, int minHealth, int maxHealth, int minItems, int maxItems, int minBullets, int maxBullets, bool dunceDealer, bool originalItemsOnly, bool noItems, Dictionary<EItem, bool> enabledItems)
+    public SettingsData(bool botDealer, int maxPlayers, int minHealth, int maxHealth, int minItems, int maxItems, int minBullets, int maxBullets, bool dunceDealer, bool originalItemsOnly, bool noItems, bool betaInverters, Dictionary<EItem, bool> enabledItems)
     {
         BotDealer = botDealer;
         MaxPlayers = maxPlayers;
@@ -133,6 +134,7 @@ public class SettingsData
         DunceDealer = dunceDealer;
         OriginalItemsOnly = originalItemsOnly;
         NoItems = noItems;
+        BetaInverters = betaInverters;
         EnabledItems = enabledItems;
     }
 
@@ -149,6 +151,7 @@ public class SettingsData
         DunceDealer = false;
         OriginalItemsOnly = false;
         NoItems = false;
+        BetaInverters = false;
         EnabledItems = new Dictionary<EItem, bool>();
         for (EItem i = EItem.Nothing + 1; i != EItem.Count; i++)
             EnabledItems.Add(i, i != EItem.Bullet);
@@ -298,11 +301,11 @@ class PacketUsedItem : Packet
         Bullets = null;
     }
 
-    public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing, bool controlsdisabled = false)
+    public PacketUsedItem(string sender, EItem item, string stolenfrom = null, bool trashed = false, EItem newitem = EItem.Nothing, bool controlsdisabled = false, EBullet bullet = EBullet.Undefined)
     {
         Sender = sender;
         Item = item;
-        Bullet = EBullet.Undefined;
+        Bullet = bullet;
         Healed = 0;
         Index = 0;
         Inverted = false;
@@ -504,6 +507,7 @@ class PacketUsedItem : Packet
         switch (Item)
         {
             case EItem.Magnifying:
+            case EItem.Inverter:
                 {
                     int bullet = (int)Bullet;
                     sync.SerializeInt(ref bullet);
@@ -909,6 +913,7 @@ class PacketUpdateSettings : Packet
         sync.SerializeBool(ref Data.DunceDealer);
         sync.SerializeBool(ref Data.OriginalItemsOnly);
         sync.SerializeBool(ref Data.NoItems);
+        sync.SerializeBool(ref Data.BetaInverters);
         if (received)
         {
             int count = 0;
