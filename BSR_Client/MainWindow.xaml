@@ -92,75 +92,75 @@
                     <RowDefinition Height="4*"/>
                     <RowDefinition Height="11*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Margin="5" Grid.Row="0" Text="Items:" Foreground="White" VerticalAlignment="Bottom"/>
+                <TextBlock Margin="5" Grid.Row="0" Text="Items:" Foreground="White" VerticalAlignment="Bottom" ToolTip="Allows you to enable or disable Items"/>
                 <StackPanel Orientation="Vertical" Grid.Row="2" Margin="5">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Bot Dealer:" Foreground="White"/>
+                        <TextBlock Text="Bot Dealer:" Foreground="White" ToolTip="Adds a Bot Dealer to the Game that you can play against"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsBotDealer" IsChecked="False"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Max Players:" Foreground="White"/>
+                        <TextBlock Text="Max Players:" Foreground="White" ToolTip="Set the maximum Amount of Players that can join"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMaxPlayers" Minimum="2" Value="5" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Min Health:" Foreground="White"/>
+                        <TextBlock Text="Min Health:" Foreground="White" ToolTip="Set the minimum Amount of Health that everyone can get"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMinHealth" Minimum="1" Value="10" Maximum="30" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Max Health:" Foreground="White"/>
+                        <TextBlock Text="Max Health:" Foreground="White" ToolTip="Set the maximum Amount of Health that everyone can get"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMaxHealth" Minimum="1" Value="15" Maximum="30" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Min Items per Round:" Foreground="White"/>
+                        <TextBlock Text="Min Items per Round:" Foreground="White" ToolTip="Set the minimum Amount of Items that everyone can get"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMinItems" Minimum="1" Value="1" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Max Items per Round:" Foreground="White"/>
+                        <TextBlock Text="Max Items per Round:" Foreground="White" ToolTip="Set the maximum Amount of Items that everyone can get"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMaxItems" Minimum="1" Value="4" Maximum="5" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Min Bullets per Round:" Foreground="White"/>
+                        <TextBlock Text="Min Bullets per Round:" Foreground="White" ToolTip="Set the minimum Amount of Bullets that can be loaded into the Shotgun"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMinBullets" Minimum="2" Value="2" Maximum="8" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Max Bullets per Round:" Foreground="White"/>
+                        <TextBlock Text="Max Bullets per Round:" Foreground="White" ToolTip="Set the maximum Amount of Bullets that can be loaded into the Shotgun"/>
                         <TextBlock Width="5"/>
                         <Slider Name="SettingsMaxBullets" Minimum="2" Value="8" Maximum="8" Width="150" AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="0" IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     <TextBlock/>
-                    <TextBlock Text="Experiments:" Foreground="White"/>
+                    <TextBlock Text="Experiments:" Foreground="White" ToolTip="Fun Settings that might be interesting"/>
                     <TextBlock/>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Dunce Dealer:" Foreground="White"/>
+                        <TextBlock Text="Dunce Dealer:" Foreground="White" ToolTip="Makes the Dealer more random and play less optimal"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsDunceDealer" IsChecked="False"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Original Items only:" Foreground="White"/>
+                        <TextBlock Text="Original Items only:" Foreground="White" ToolTip="Only enables the Items from the original Game"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsOriginalItemsOnly" IsChecked="False"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="No Items:" Foreground="White"/>
+                        <TextBlock Text="No Items:" Foreground="White" ToolTip="Play without any Items"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsNoItems" IsChecked="False"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Beta Inverters:" Foreground="White"/>
+                        <TextBlock Text="Beta Inverters:" Foreground="White" ToolTip="Make the Inverter behave like in the beta where they tell you what Bullet Type got inverted"/>
                         <TextBlock Width="5"/>
                         <CheckBox Name="SettingsBetaInverters" IsChecked="False"/>
                     </StackPanel>
@@ -178,6 +178,7 @@
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
+                            <Setter Property="ToolTip" Value="{Binding Description}"/>
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.View>

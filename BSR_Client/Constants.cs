@@ -40,10 +40,13 @@ namespace BSR_Client
 
         public bool IsEnabled { get; set; }
 
-        public SettingsItem(EItem item, bool enabled)
+        public string Description { get; set; }
+
+        public SettingsItem(EItem item, bool enabled, string description)
         {
             ItemName = item.ToString();
             IsEnabled = enabled;
+            Description = description;
         }
     }
 

@@ -479,7 +479,11 @@ namespace BSR_Client
         {
             SettingsData defaultdata = new SettingsData();
             foreach (KeyValuePair<EItem, bool> it in defaultdata.EnabledItems)
-                SettingsItems.Items.Add(new SettingsItem(it.Key, it.Value));
+            {
+                if (!ItemDescriptions.TryGetValue(it.Key, out string desc))
+                    desc = "NO DESCRIPTION";
+                SettingsItems.Items.Add(new SettingsItem(it.Key, it.Value, desc));
+            }
             SettingsBotDealer.IsChecked = defaultdata.BotDealer;
             SettingsMaxPlayers.Value = defaultdata.MaxHealth;
             SettingsMinHealth.Value = defaultdata.MinHealth;
