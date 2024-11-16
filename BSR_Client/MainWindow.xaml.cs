@@ -521,6 +521,7 @@ namespace BSR_Client
                         }
                         SetFlag(EFlags.Shooting);
                         SetPlayersInteractable(true, true);
+                        Announce("Select a Player to shoot");
                     }
                     break;
                 case "Item1":
@@ -560,6 +561,26 @@ namespace BSR_Client
                             ResetPlayerItemFlags();
                             Packet.Send(new PacketUseItem(You, item), Sync);
                             return;
+                        }
+                        if (IsFlagSet(EFlags.UsingPlayerItem))
+                        {
+                            string desc = "";
+                            switch (item)
+                            {
+                                case EItem.Adrenaline:
+                                    desc = "steal an Item from";
+                                    break;
+                                case EItem.Heroine:
+                                    desc = "give them Heroine";
+                                    break;
+                                case EItem.Katana:
+                                    desc = "use the Katana on";
+                                    break;
+                                case EItem.Swapper:
+                                    desc = "use the Swapper on";
+                                    break;
+                            }
+                            Announce(string.Format("Select a Player to {0}", desc));
                         }
                         if (IsFlagSet(EFlags.UsingPlayerItem))
                             SetPlayersInteractable(true, false);

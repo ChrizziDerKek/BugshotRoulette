@@ -449,6 +449,10 @@ namespace BSR_Client
                                 break;
                             }
                         }
+                        if (player == You)
+                            Announce("You died");
+                        else
+                            Announce(string.Format("{0} died", player));
                     }
                     HealthBars[i].Value = health;
                     break;
